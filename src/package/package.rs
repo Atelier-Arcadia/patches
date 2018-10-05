@@ -3,7 +3,7 @@ use std::cmp::{PartialOrd, Ordering};
 use semver::{SemVerError, Version};
 
 
-// Contains information describing a package installed on a host.
+/// Contains information describing a package installed on a host.
 #[derive(Clone, Debug)]
 pub struct Package {
   pub name: String,
@@ -11,7 +11,7 @@ pub struct Package {
 }
 
 impl Package {
-  // Construct a package with a name and specific version.
+  /// Construct a package with a name and specific version.
   pub fn new<S: Into<String>>(name: S, ver: Version) -> Self {
     Package {
       name: name.into(),
@@ -19,9 +19,9 @@ impl Package {
     }
   }
 
-  // Attempt to construct a package with a name and a version.
-  // Here, the version is given as a string which is parsed with the assumption that
-  // it describes a semantic version.
+  /// Attempt to construct a package with a name and a version.
+  /// Here, the version is given as a string which is parsed with the assumption that
+  /// it describes a semantic version.
   pub fn with_version_string<S1, S2>(name: S1, ver: S2) -> Result<Package, SemVerError>
     where S1: Into<String>,
           S2: AsRef<str>,
