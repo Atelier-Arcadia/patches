@@ -1,6 +1,7 @@
+mod macos;
 mod package;
 
-pub use package::Package;
+pub use package::package::Package;
 
 
 /// An interface for different means of searching for a package on a host.
