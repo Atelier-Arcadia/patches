@@ -1,5 +1,5 @@
 [package]
-name = "chainmail"
+name = "patches"
 version = "0.1.0"
 authors = ["Zack Mullaly <zmullaly@mozilla.com>"]
 
