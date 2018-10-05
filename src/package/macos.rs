@@ -56,8 +56,6 @@ impl<P> Detect for Homebrew<P>
     let ext = Path::new(&package_dir);
     let file_path = self.base_dir.as_ref().join(ext);
 
-    println!("Checking if {:?} exists", file_path);
-
     Ok(file_path.exists())
   }
 }
