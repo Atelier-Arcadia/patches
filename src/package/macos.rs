@@ -22,9 +22,7 @@ impl Homebrew<&'static Path> {
   }
 }
 
-impl<P> Homebrew<P> 
-  where P: AsRef<Path>
-{
+impl<P: AsRef<Path>> Homebrew<P> {
   /// Construct a `Homebrew` that will look for packages in a given base directory.
   pub fn with_base_dir(path: P) -> Self {
     Homebrew {
@@ -41,9 +39,7 @@ impl Default for Homebrew<&'static Path> {
   }
 }
 
-impl<P> Detect for Homebrew<P>
-  where P: AsRef<Path>
-{
+impl<P: AsRef<Path>> Detect for Homebrew<P> {
   type Error = Never;
 
   fn detect(&self, pkg: &Package) -> Result<bool, Self::Error> {
