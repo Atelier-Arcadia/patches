@@ -1,4 +1,4 @@
-mod macos;
+pub mod macos;
 mod package;
 
 pub use package::package::Package;
