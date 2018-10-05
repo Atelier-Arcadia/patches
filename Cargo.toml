@@ -1,0 +1,10 @@
+[package]
+name = "chainmail"
+version = "0.1.0"
+authors = ["Zack Mullaly <zmullaly@mozilla.com>"]
+
+[dependencies]
+semver = "^0.9"
+serde = "^1.0"
+serde_derive = "^1.0"
+serde_json = "^1.0"
