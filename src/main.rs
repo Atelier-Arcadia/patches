@@ -6,6 +6,7 @@ extern crate serde_json;
 
 mod never;
 mod package;
+mod vulnerability;
 
 use std::path::Path;
 
