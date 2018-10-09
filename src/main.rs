@@ -1,4 +1,5 @@
 extern crate clap;
+extern crate reqwest;
 extern crate semver;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
