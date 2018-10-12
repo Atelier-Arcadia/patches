@@ -3,6 +3,9 @@ name = "patches"
 version = "0.1.0"
 authors = ["Zack Mullaly <zmullaly@mozilla.com>"]
 
+[features]
+integration-test = []  # Only set when integration testing in Docker
+
 [dependencies]
 clap = "^2.32"
 reqwest = "^0.9"
