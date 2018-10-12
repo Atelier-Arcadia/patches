@@ -13,9 +13,9 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
-    expose:
-      - 6060
-      - 6061
+   expose:
+     - 6060
+     - 6061
     links:
       - postgres
     volumes:
