@@ -1,6 +1,5 @@
 extern crate clap;
 extern crate reqwest;
-extern crate semver;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
@@ -47,16 +46,15 @@ fn main() {
   let (detect, pkg) = match (matches.value_of("package"), matches.value_of("version"), matches.value_of("directory")) {
     (Some(package), Some(version), Some(directory)) =>
       ( package::macos::Homebrew::with_base_dir(Path::new(directory)),
-        package::Package::with_version_string(package, version),
+        package::Package::new(package, version),
       ),
     (Some(package), Some(version), _) =>
       ( package::macos::Homebrew::new(),
-        package::Package::with_version_string(package, version),
+        package::Package::new(package, version),
       ),
     _ => panic!("Missing required values"),
   };
 
-  let pkg = pkg.expect("Invalid version supplied");
   match detect.detect(&pkg) {
     Ok(true)  => println!("Installed"),
     Ok(false) => println!("Not installed"),

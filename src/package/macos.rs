@@ -9,7 +9,7 @@ use package::{Detect, Package};
 /// directory that [Homebrew](https://brew.sh/) installs packages to.
 ///
 /// This type performs a simple check that involves looking for a directory in
-/// `base_dir/package_name/major.minor.patch/` to determine if a package is installed.
+/// `base_dir/package_name/version/` to determine if a package is installed.
 pub struct Homebrew<P> {
   pub base_dir: P,
 }
@@ -43,12 +43,7 @@ impl<P: AsRef<Path>> Detect for Homebrew<P> {
   type Error = Never;
 
   fn detect(&self, pkg: &Package) -> Result<bool, Self::Error> {
-    let package_dir = format!(
-      "{}/{}.{}.{}",
-      pkg.name,
-      pkg.version.major,
-      pkg.version.minor,
-      pkg.version.patch);
+    let package_dir = format!("{}/{}", pkg.name, pkg.version);
     let ext = Path::new(&package_dir);
     let file_path = self.base_dir.as_ref().join(ext);
 
@@ -68,7 +63,7 @@ mod tests {
   #[test]
   fn finds_installed_packages() {
     let hb = Homebrew::with_base_dir("/tmp");
-    let package = Package::with_version_string("packagename", "1.2.3").unwrap();
+    let package = Package::new("packagename", "1.2.3");
 
     fs::create_dir_all("/tmp/packagename/1.2.3").unwrap();
 
@@ -78,7 +73,7 @@ mod tests {
   #[test]
   fn does_not_find_packages_that_are_not_installed() {
     let hb = Homebrew::new();
-    let package = Package::with_version_string("packagename", "3.2.1").unwrap();
+    let package = Package::new("packagename", "3.2.1");
 
     assert!(!hb.detect(&package).unwrap());
   }

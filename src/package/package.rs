@@ -3,37 +3,24 @@ use std::cmp::{PartialOrd, Ordering};
 use serde::ser::Serialize;
 use serde::de::Deserialize;
 
-use semver::{SemVerError, Version};
-
 
 /// Contains information describing a package installed on a host.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Package {
   pub name: String,
-  pub version: Version,
+  pub version: String,
 }
 
 impl Package {
   /// Construct a package with a name and specific version.
-  pub fn new<S: Into<String>>(name: S, ver: Version) -> Self {
+  pub fn new<S1, S2>(name: S1, ver: S2) -> Self
+    where S1: Into<String>,
+          S2: Into<String>,
+  {
     Package {
       name: name.into(),
-      version: ver,
+      version: ver.into(),
     }
-  }
-
-  /// Attempt to construct a package with a name and a version.
-  /// Here, the version is given as a string which is parsed with the assumption that
-  /// it describes a semantic version.
-  pub fn with_version_string<S1, S2>(name: S1, ver: S2) -> Result<Package, SemVerError>
-    where S1: Into<String>,
-          S2: AsRef<str>,
-  {
-    Version::parse(ver.as_ref())
-      .map(|version| Package {
-        name: name.into(),
-        version: version,
-      })
   }
 }
 
@@ -65,11 +52,11 @@ mod tests {
 
   #[test]
   fn package_comparison() {
-    let p1 = Package::with_version_string("mig", "3.14.15").unwrap();
-    let p2 = Package::with_version_string("mig", "2.1.8").unwrap();
-    let p3 = Package::with_version_string("mozdef", "10.42.1").unwrap();
-    let p4 = Package::with_version_string("mig", "3.14.15").unwrap();
-    let p5 = Package::with_version_string("mozdef", "3.14.15").unwrap();
+    let p1 = Package::new("mig", "3.14.15");
+    let p2 = Package::new("mig", "2.1.8");
+    let p3 = Package::new("mozdef", "10.42.1");
+    let p4 = Package::new("mig", "3.14.15");
+    let p5 = Package::new("mozdef", "3.14.15");
 
     assert!(p1 != p2);
     assert!(p2 != p3);
