@@ -6,53 +6,11 @@ use serde::de::Deserialize;
 use semver::{SemVerError, Version};
 
 
-/// A container for the textual representation of a `Package`.
-///
-/// # Examples
-///
-/// ```
-/// let desc = Description {
-///   name = "package".to_string(),
-///   version = "1.2.3".to_string(),
-/// };
-/// let pkg = Package::with_version_string(desc.name, desc.version).unwrap();
-/// ```
-///
-/// ```
-/// let pkg = Package::new("package", Version {
-///   major: 1,
-///   minor: 2,
-///   patch: 3,
-///   pre: vec![],
-///   build: vec![],
-/// });
-/// let desc: Description = From::from(pkg);
-/// ```
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Description {
-  pub name: String,
-  pub version: String,
-}
-
 /// Contains information describing a package installed on a host.
 #[derive(Clone, Debug)]
 pub struct Package {
   pub name: String,
   pub version: Version,
-}
-
-impl Description {
-  /// Construct a representation of a `Package` that can be easily
-  /// serialized and deserialized.
-  pub fn new<S1, S2>(name: S1, ver: S2) -> Self
-    where S1: Into<String>,
-          S2: Into<String>,
-  {
-    Description {
-      name: name.into(),
-      version: ver.into(),
-    }
-  }
 }
 
 impl Package {
@@ -97,14 +55,6 @@ impl PartialOrd for Package {
   }
 }
 
-impl From<Package> for Description {
-  fn from(pkg: Package) -> Self {
-    Description {
-      name: pkg.name,
-      version: format!("{}", pkg.version),
-    }
-  }
-}
 
 #[cfg(test)]
 mod tests {
