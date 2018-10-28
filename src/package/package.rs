@@ -1,8 +1,5 @@
 use std::cmp::{PartialOrd, Ordering};
 
-use serde::ser::Serialize;
-use serde::de::Deserialize;
-
 
 /// Contains information describing a package installed on a host.
 #[derive(Clone, Debug, Serialize, Deserialize)]
