@@ -14,4 +14,6 @@ RUN cargo build --lib
 # re-build our dependencies every time.
 COPY src/ src/
 
+ENV RUST_BACKTRACE 1
+
 CMD ["cargo", "test", "--features", "integration-test", "--", "--nocapture"]
