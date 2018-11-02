@@ -16,11 +16,22 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 	}{
 		{
 			Description:    "The client should return the summaries written by the API",
-			RequestHandler: serveSummaries,
+			RequestHandler: serveSummariesWithoutNextPage,
 			TargetPlatform: Debian8,
 			ExpectedSummaries: []summary{
 				{Name: "testvuln1"},
 				{Name: "testvuln2"},
+			},
+			ExpectError: false,
+		},
+		{
+			Description:    "The client should make requests until it reads all pages",
+			RequestHandler: serveSummariesWithNextPage(),
+			TargetPlatform: Debian8,
+			ExpectedSummaries: []summary{
+				{Name: "testvuln1"},
+				{Name: "testvuln2"},
+				{Name: "testvuln3"},
 			},
 			ExpectError: false,
 		},
@@ -47,16 +58,26 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 			server := httptest.NewServer(testCase.RequestHandler)
 			defer server.Close()
 
-			config := Clair{
+			config := ClairAPIv1{
 				BaseURL: server.URL,
 			}
-			vulns, err := summarizeVulnerabilities(config, testCase.TargetPlatform)
+			vulnsChan, done, err := summarizeVulnerabilities(config, testCase.TargetPlatform)
 
 			gotErr := err != nil
 			if gotErr && !testCase.ExpectError {
 				t.Errorf("Did not expect an error, but got '%s'", err.Error())
 			} else if !gotErr && testCase.ExpectError {
 				t.Errorf("Expected an error but did not get one")
+			}
+
+			vulns := []summary{}
+			for {
+				select {
+				case v := <-vulnsChan:
+					vulns = append(vulns, v)
+				case <-done:
+					break
+				}
 			}
 
 			if len(vulns) != len(testCase.ExpectedSummaries) {
@@ -80,7 +101,7 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 	}
 }
 
-func serveSummaries(res http.ResponseWriter, req *http.Request) {
+func serveSummariesWithoutNextPage(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	res.Write([]byte(`
 {
@@ -94,6 +115,44 @@ func serveSummaries(res http.ResponseWriter, req *http.Request) {
   ]
 }
   `))
+}
+
+func serveSummariesWithNextPage() {
+	called := false
+
+	return func(res http.ResponseWriter, req *http.Request) {
+		res.Header().Set("Content-Type", "application/json")
+		withNext := `
+{
+  "Vulnerabilities": [
+    {
+      "Name": "testvuln1"
+    },
+    {
+      "Name": "testvuln2"
+    }
+  ],
+  "NextPage": "banana",
+}
+  `
+		withoutNext := `
+{
+  "Vulnerabilities": [
+    {
+      "Name": "testvuln3"
+    }
+  ],
+  "NextPage": "banana",
+}
+  `
+
+		if !called {
+			res.Write([]byte(withNext))
+		} else {
+			res.Write([]byte(withoutNext))
+		}
+		called = true
+	}
 }
 
 func serveFixedVulnDescription(res http.ResponseWriter, req *http.Request) {
