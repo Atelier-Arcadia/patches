@@ -61,7 +61,8 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 			config := ClairAPIv1{
 				BaseURL: server.URL,
 			}
-			vulnsChan, done, err := summarizeVulnerabilities(config, testCase.TargetPlatform)
+			vulnsChan, done, errs := summarizeVulnerabilities(config, testCase.TargetPlatform)
+			err := tryReadErr(errs)
 
 			gotErr := err != nil
 			if gotErr && !testCase.ExpectError {
@@ -98,6 +99,15 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 				t.Errorf("Did not find all of the vulnerabilities expected")
 			}
 		}()
+	}
+}
+
+func tryReadErr(errs <-chan error) error {
+	select {
+	case e := <-errs:
+		return e
+	default:
+		return nil
 	}
 }
 
