@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/zsck/patches/internal/scanners/clair"
+	"github.com/zsck/patches/internal/sources/clair"
 )
 
 func main() {
