@@ -87,17 +87,17 @@ func __collect(
 	}
 
 	ext := fmt.Sprintf(vulnSummariesWithoutPageEndptFmt, platform)
-	nextPage := __get(base, ext, summaries, errs)
+	nextPage := __getSummaries(base, ext, summaries, errs)
 	for nextPage != "" {
 		ext = fmt.Sprintf(vulnSummariesWithPageEndptFmt, platform, nextPage)
-		nextPage = __get(base, ext, summaries, errs)
+		nextPage = __getSummaries(base, ext, summaries, errs)
 	}
 	finished <- done.Done{}
 }
 
-// __get fetches a page of vulnerability summaries and returns the next
+// __getSummaries fetches a page of vulnerability summaries and returns the next
 // page's identifier, or an empty string if there is not one.
-func __get(
+func __getSummaries(
 	base *url.URL,
 	ext string,
 	summaries chan<- summary,
