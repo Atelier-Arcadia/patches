@@ -62,22 +62,20 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 				BaseURL: server.URL,
 			}
 			vulnsChan, done, errs := summarizeVulnerabilities(config, testCase.TargetPlatform)
-			err := tryReadErr(errs)
-
-			gotErr := err != nil
-			if gotErr && !testCase.ExpectError {
-				t.Errorf("Did not expect an error, but got '%s'", err.Error())
-			} else if !gotErr && testCase.ExpectError {
-				t.Errorf("Expected an error but did not get one")
-			}
 
 			vulns := []summary{}
+		readall:
 			for {
 				select {
 				case v := <-vulnsChan:
 					vulns = append(vulns, v)
 				case <-done:
-					break
+					break readall
+				case err := <-errs:
+					if !testCase.ExpectError {
+						t.Fatalf("Did not expect an error, but got '%s'", err.Error())
+					}
+					return
 				}
 			}
 
@@ -85,8 +83,8 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 				t.Fatalf("Expected to get %d vulns but got %d", len(testCase.ExpectedSummaries), len(vulns))
 			}
 
+			found := false
 			for i := range testCase.ExpectedSummaries {
-				found := false
 				for j := range vulns {
 					if vulns[i] == testCase.ExpectedSummaries[j] {
 						found = true
@@ -127,7 +125,7 @@ func serveSummariesWithoutNextPage(res http.ResponseWriter, req *http.Request) {
   `))
 }
 
-func serveSummariesWithNextPage() {
+func serveSummariesWithNextPage() http.HandlerFunc {
 	called := false
 
 	return func(res http.ResponseWriter, req *http.Request) {
@@ -142,7 +140,7 @@ func serveSummariesWithNextPage() {
       "Name": "testvuln2"
     }
   ],
-  "NextPage": "banana",
+  "NextPage": "banana"
 }
   `
 		withoutNext := `
@@ -151,8 +149,7 @@ func serveSummariesWithNextPage() {
     {
       "Name": "testvuln3"
     }
-  ],
-  "NextPage": "banana",
+  ]
 }
   `
 

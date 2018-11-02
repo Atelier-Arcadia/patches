@@ -77,13 +77,21 @@ func summarizeVulnerabilities(
 		}
 
 		__toErrorResponse := func(jsonData map[string]interface{}) (errorResponse, error) {
-			if err, ok := jsonData["Error"].(message); ok {
-				errResp := errorResponse{
-					Error: err,
+			theError := errors.New("Not an error response")
+
+			if err, ok := jsonData["Error"].(map[string]interface{}); ok {
+				if msg, ok := err["Message"].(string); ok {
+					errResp := errorResponse{
+						Error: message{
+							Message: msg,
+						},
+					}
+					return errResp, nil
+				} else {
+					return errorResponse{}, theError
 				}
-				return errResp, nil
 			}
-			return errorResponse{}, errors.New("Not an error response")
+			return errorResponse{}, theError
 		}
 
 		__toSummaryResponse := func(jsonData map[string]interface{}) (summaryResponse, error) {
