@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/zsck/patches/pkg/pack"
 )
 
 func TestSummarizeVulnerabilities(t *testing.T) {
@@ -100,12 +102,99 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 	}
 }
 
-func tryReadErr(errs <-chan error) error {
-	select {
-	case e := <-errs:
-		return e
-	default:
-		return nil
+func TestDescribeVulnerability(t *testing.T) {
+	testCases := []struct {
+		Description    string
+		RequestHandler http.HandlerFunc
+		VulnName       string
+		TargetPlatfor  Platform
+		ExpectedVuln   vulnerability.Vulnerability
+		ExpectError    bool
+	}{
+		{
+			Description:    "The client should return valid data from the API",
+			RequestHandler: serveFixedVulnDescription,
+			VulnName:       "vuln1",
+			TargetPlatform: Debian8,
+			ExpectedVuln: vulnerability.Vulnerability{
+				Name:                 "testvulnfull",
+				AffectedPackageName:  "testpackage",
+				AffectedPlatformName: "debian:8",
+				DetailsHref:          "address.website",
+				SeverityRating:       vulnerability.SeverityLow,
+				FixedInPackages: []pack.Package{
+					{
+						Name:    "testpackage",
+						Version: "1.2.3",
+					},
+					{
+						Name:    "testpackage",
+						Version: "3.2.1",
+					},
+				},
+			},
+			ExpectError: false,
+		},
+		{
+			Description:    "The client should return an empty vulnerability if the vuln is not fixed",
+			RequestHandler: serveUnfixedVulnDescription,
+			VulnName:       "vuln2",
+			TargetPlatform: Debian8,
+			ExpectedVuln:   vulnerability.Unpatched,
+			ExpectError:    false,
+		},
+		{
+			Description:    "The client should return an error when the API does",
+			RequestHandler: serveError,
+			VulnName:       "doesntmatter",
+			TargetPlatform: Debian8,
+			ExpectedVuln:   vulnerability.Unpatched,
+			ExpectError:    true,
+		},
+		{
+			Description:    "The client should return an error when the request is bad",
+			RequestHandler: serveBadRequest,
+			VulnName:       "doesntmatter",
+			TargetPlatform: Debian8,
+			ExpectedVuln:   vulnerability.Unpatched,
+			ExpectError:    true,
+		},
+	}
+
+	for caseNum, testCase := range testCases {
+		t.Logf("Running TestDescribeVulnerability case #%d: %s", caseNum, testCase.Description)
+
+		func() {
+			server := httptest.NewServer(testCase.RequestHandler)
+			defer server.Close()
+
+			config := ClairAPIv1{
+				BaseURL: server.URL,
+			}
+			vulnChan, done, errs := describeVulnerability(
+				config,
+				testCase.VulnName,
+				testCase.TargetPlatform)
+
+		readall:
+			for {
+				select {
+				case vuln := <-vulnChan:
+					if !testCase.ExpectedVuln.Equals(vuln) {
+						t.Errorf(
+							"Expected to get vulnerability %s but got %s",
+							testCase.ExpectedVuln.String(),
+							vuln.String())
+					}
+				case <-done:
+					break readall
+				case err := <-errs:
+					if !testCase.ExpectError {
+						t.Fatalf("Did not expect an error, but got '%s'", err.Error())
+					}
+				}
+			}
+		}()
 	}
 }
 
@@ -172,11 +261,11 @@ func serveFixedVulnDescription(res http.ResponseWriter, req *http.Request) {
     "Severity": "Low",
     "FixedIn": [
       {
-        "Name": "fix1",
+        "Name": "testpackage",
         "Version": "1.2.3"
       },
       {
-        "Name": "fix2",
+        "Name": "testpackage",
         "Version": "3.2.1"
       }
     ]
