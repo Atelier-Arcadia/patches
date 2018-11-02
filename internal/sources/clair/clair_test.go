@@ -4,9 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/zsck/patches/pkg/pack"
-	"github.com/zsck/patches/pkg/vulnerability"
 )
 
 func TestSummarizeVulnerabilities(t *testing.T) {
@@ -108,8 +105,8 @@ func TestDescribeVulnerability(t *testing.T) {
 		Description    string
 		RequestHandler http.HandlerFunc
 		VulnName       string
-		TargetPlatfor  Platform
-		ExpectedVuln   vulnerability.Vulnerability
+		TargetPlatform Platform
+		ExpectedVuln   description
 		ExpectError    bool
 	}{
 		{
@@ -117,13 +114,11 @@ func TestDescribeVulnerability(t *testing.T) {
 			RequestHandler: serveFixedVulnDescription,
 			VulnName:       "vuln1",
 			TargetPlatform: Debian8,
-			ExpectedVuln: vulnerability.Vulnerability{
-				Name:                 "testvulnfull",
-				AffectedPackageName:  "testpackage",
-				AffectedPlatformName: "debian:8",
-				DetailsHref:          "address.website",
-				SeverityRating:       vulnerability.SeverityLow,
-				FixedInPackages: []pack.Package{
+			ExpectedVuln: description{
+				Name:     "testvulnfull",
+				Link:     "address.website",
+				Severity: "Low",
+				FixedIn: []fix{
 					{
 						Name:    "testpackage",
 						Version: "1.2.3",
@@ -141,7 +136,7 @@ func TestDescribeVulnerability(t *testing.T) {
 			RequestHandler: serveUnfixedVulnDescription,
 			VulnName:       "vuln2",
 			TargetPlatform: Debian8,
-			ExpectedVuln:   vulnerability.Unpatched,
+			ExpectedVuln:   description{},
 			ExpectError:    false,
 		},
 		{
@@ -149,7 +144,7 @@ func TestDescribeVulnerability(t *testing.T) {
 			RequestHandler: serveError,
 			VulnName:       "doesntmatter",
 			TargetPlatform: Debian8,
-			ExpectedVuln:   vulnerability.Unpatched,
+			ExpectedVuln:   description{},
 			ExpectError:    true,
 		},
 		{
@@ -157,7 +152,7 @@ func TestDescribeVulnerability(t *testing.T) {
 			RequestHandler: serveBadRequest,
 			VulnName:       "doesntmatter",
 			TargetPlatform: Debian8,
-			ExpectedVuln:   vulnerability.Unpatched,
+			ExpectedVuln:   description{},
 			ExpectError:    true,
 		},
 	}
@@ -177,26 +172,49 @@ func TestDescribeVulnerability(t *testing.T) {
 				testCase.VulnName,
 				testCase.TargetPlatform)
 
-		readall:
 			for {
 				select {
 				case vuln := <-vulnChan:
-					if !testCase.ExpectedVuln.Equals(vuln) {
+					if !descriptionsEqual(testCase.ExpectedVuln, vuln) {
 						t.Errorf(
-							"Expected to get vulnerability %s but got %s",
-							testCase.ExpectedVuln.String(),
-							vuln.String())
+							"Expected to get vulnerability %v but got %v",
+							testCase.ExpectedVuln,
+							vuln)
 					}
+					return
 				case <-done:
-					break readall
+					return
 				case err := <-errs:
 					if !testCase.ExpectError {
 						t.Fatalf("Did not expect an error, but got '%s'", err.Error())
 					}
+					return
 				}
 			}
 		}()
 	}
+}
+
+func descriptionsEqual(d1, d2 description) bool {
+	if len(d1.FixedIn) != len(d2.FixedIn) {
+		return false
+	}
+	for _, f1 := range d1.FixedIn {
+		found := false
+		for _, f2 := range d2.FixedIn {
+			if f1.Name == f2.Name && f1.Version == f2.Version {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return d1.Name == d2.Name &&
+		d1.Link == d2.Link &&
+		d1.Severity == d2.Severity
 }
 
 func serveSummariesWithoutNextPage(res http.ResponseWriter, req *http.Request) {

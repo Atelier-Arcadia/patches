@@ -167,7 +167,7 @@ func __describe(
 		return
 	}
 	if description, convertErr := __toDescriptionResponse(respJSON); convertErr == nil {
-		descriptions <- description
+		descriptions <- description.Vulnerability
 	}
 	finished <- done.Done{}
 }
