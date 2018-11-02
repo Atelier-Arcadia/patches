@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/zsck/patches/pkg/pack"
+	"github.com/zsck/patches/pkg/vulnerability"
 )
 
 func TestSummarizeVulnerabilities(t *testing.T) {
