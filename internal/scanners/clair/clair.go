@@ -166,7 +166,6 @@ func summarizeVulnerabilities(
 
 	go __collect()
 	return summaries, finished, errs
-
 }
 
 func (p Platform) String() string {
