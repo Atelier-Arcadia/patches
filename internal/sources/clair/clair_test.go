@@ -3,6 +3,7 @@ package clair
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -69,8 +70,10 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 				select {
 				case v := <-vulnsChan:
 					vulns = append(vulns, v)
+
 				case <-done:
 					break readall
+
 				case err := <-errs:
 					if !testCase.ExpectError {
 						t.Fatalf("Did not expect an error, but got '%s'", err.Error())
@@ -83,18 +86,17 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 				t.Fatalf("Expected to get %d vulns but got %d", len(testCase.ExpectedSummaries), len(vulns))
 			}
 
-			found := false
 			for i := range testCase.ExpectedSummaries {
+				found := false
 				for j := range vulns {
 					if vulns[i] == testCase.ExpectedSummaries[j] {
 						found = true
 						break
 					}
 				}
-			}
-
-			if !found {
-				t.Errorf("Did not find all of the vulnerabilities expected")
+				if !found {
+					t.Errorf("Did not find: %v", testCase.ExpectedSummaries[i])
+				}
 			}
 		}()
 	}
@@ -182,8 +184,10 @@ func TestDescribeVulnerability(t *testing.T) {
 							vuln)
 					}
 					return
+
 				case <-done:
 					return
+
 				case err := <-errs:
 					if !testCase.ExpectError {
 						t.Fatalf("Did not expect an error, but got '%s'", err.Error())
@@ -192,6 +196,121 @@ func TestDescribeVulnerability(t *testing.T) {
 				}
 			}
 		}()
+	}
+}
+
+func TestSourceImplementation(t *testing.T) {
+	testCases := []struct {
+		Description    string
+		RequestHandler http.HandlerFunc
+		TargetPlatform Platform
+		ExpectError    bool
+		ExpectedVulns  []vulnerability.Vulnerability
+	}{
+		{
+			Description:    "Should serve all vulnerabilities from the Clair API",
+			RequestHandler: clairRouter(serveSummariesWithNextPage, serveFixedVulnDescription),
+			TargetPlatform: Debian8,
+			ExpectError:    false,
+			ExpectedVulns: []vulnerability.Vulnerability{
+				{
+					Name:                 "testvulnfull",
+					AffectedPackageName:  "testpackage",
+					AffectedPlatformName: "debian:8",
+					DetailsHref:          "address.website",
+					SeverityRating:       vulnerability.SeverityLow,
+					FixeInPackages: []pack.Package{
+						{
+							Name:    "testpackage",
+							Version: "1.2.3",
+						},
+						{
+							Name:    "testpackage",
+							Version: "3.2.1",
+						},
+					},
+				},
+			},
+		},
+		{
+			Description:    "Should not serve unpatched vulnerabilities",
+			RequestHandler: clairRouter(serveSummariesWithoutNextPage, serveUnfixedVulnDescription),
+			TargetPlatform: Debian8,
+			ExpectError:    false,
+			ExpectedVulns:  []vulnerability.Vulnerability{},
+		},
+		{
+			Description:    "Should return errors from the API (case 1)",
+			RequestHandler: clairRouter(serveError, serveUnfixedVulnDescription),
+			TargetPlatform: Debian8,
+			ExpectError:    true,
+			ExpectedVulns:  []vulnerability.Vulnerability{},
+		},
+		{
+			Description:    "Should return errors from the API (case 2)",
+			RequestHandler: clairRouter(serveSummariesWithoutNextPage, serveError),
+			TargetPlatform: Debian8,
+			ExpectError:    true,
+			ExpectedVulns:  []vulnerability.Vulnerability{},
+		},
+	}
+
+	for caseNum, testCase := range testCases {
+		t.Logf("Running TestSourceImplementation case #%d: %s", caseNum, testCase.Description)
+
+		func() {
+			server := httptest.NewServer(testCase.RequestHandler)
+			defer server.Close()
+
+			clair := ClairAPIv1{
+				BaseURL: server.URL,
+			}
+			vulnChan, done, errs := StreamVulnerabilities(clair, testCase.TargetPlatform)
+
+			vulns := []vulnerability.Vulnerability{}
+		readall:
+			for {
+				select {
+				case vuln := <-vulnChan:
+					vulns = append(vulns, vuln)
+
+				case <-done:
+					break readall
+
+				case err := <-errs:
+					if !testCase.ExpectError {
+						t.Fatalf("Did not expect an error, but got '%s'", err.Error())
+					}
+					return
+				}
+			}
+
+			for _, v1 := range testCase.ExpectedVulns {
+				found := false
+				for _, v2 := range vulns {
+					if v1.Equals(v2) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Did not find expected vuln: %v", v1)
+				}
+			}
+		}()
+	}
+}
+
+func clairRouter(
+	summaries http.HandlerFunc,
+	descriptions http.HandlerFunc,
+) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		if strings.Contains(req.URL.String(), "limit") {
+			summaries(res, req)
+		} else {
+			descriptions(res, req)
+		}
 	}
 }
 
