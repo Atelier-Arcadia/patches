@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/zsck/patches/pkg/done"
+	"github.com/zsck/patches/pkg/pack"
 	"github.com/zsck/patches/pkg/vulnerability"
 )
 
@@ -79,6 +80,58 @@ func NewStream(config ClairAPIv1, platform Platform) Stream {
 	return Stream{
 		config,
 		platform,
+	}
+}
+
+func toVulnerability(desc description, platform Platform) vulnerability.Vulnerability {
+	vuln := vulnerability.Vulnerability{
+		Name:                 desc.Name,
+		AffectedPackageName:  desc.FixedIn[0].Name,
+		AffectedPlatformName: platform.String(),
+		DetailsHref:          desc.Link,
+		SeverityRating:       toSeverity(desc.Severity),
+		FixedInPackages:      make([]pack.Package, len(desc.FixedIn)),
+	}
+
+	for i, fixPkg := range desc.FixedIn {
+		vuln.FixedInPackages[i] = toPackage(fixPkg)
+	}
+
+	return vuln
+}
+
+func toSeverity(sev string) vulnerability.Severity {
+	switch sev {
+	case "Unknown":
+		return vulnerability.SeverityUnknown
+
+	case "Negligible":
+		return vulnerability.SeverityNegligible
+
+	case "Low":
+		return vulnerability.SeverityLow
+
+	case "Medium":
+		return vulnerability.SeverityMedium
+
+	case "High":
+		return vulnerability.SeverityHigh
+
+	case "Critical":
+		return vulnerability.SeverityCritical
+
+	case "Defcon1":
+		return vulnerability.SeverityUrgent
+
+	default:
+		return vulnerability.SeverityUnknown
+	}
+}
+
+func toPackage(f fix) pack.Package {
+	return pack.Package{
+		Name:    f.Name,
+		Version: f.Version,
 	}
 }
 
@@ -328,7 +381,7 @@ func (stream Stream) Vulnerabilities() (
 	<-chan done.Done,
 	<-chan error,
 ) {
-	vulns := make(chan Vulnerability)
+	vulns := make(chan vulnerability.Vulnerability)
 	finished := make(chan done.Done)
 	errs := make(chan error)
 
@@ -336,7 +389,12 @@ func (stream Stream) Vulnerabilities() (
 	return vulns, finished, errs
 }
 
-func __stream(stream Stream, vulns chan<- vulnerability.Vulnerability, errs chan<- error) {
+func __stream(
+	stream Stream,
+	vulns chan<- vulnerability.Vulnerability,
+	finished chan<- done.Done,
+	errs chan<- error,
+) {
 	summaries, sumFinished, sumErrs := summarizeVulnerabilities(stream.config, stream.platform)
 readall:
 	for {
@@ -351,6 +409,8 @@ readall:
 			errs <- err
 		}
 	}
+
+	finished <- done.Done{}
 }
 
 func __fetchDescription(
@@ -364,16 +424,22 @@ func __fetchDescription(
 		sum.Name,
 		stream.platform)
 
+	fmt.Println("Fetching description")
+
 readall:
 	for {
 		select {
-		case description := <-descriptions:
-			vulns <- toVulnerability(description)
-
-		case <-descFinished:
+		case desc := <-descriptions:
+			fmt.Println("got a vuln desc")
+			vulns <- toVulnerability(desc, stream.platform)
 			break readall
 
-		case err := descErrs:
+		case <-descFinished:
+			fmt.Println("descFinished")
+			break readall
+
+		case err := <-descErrs:
+			fmt.Println("descErr", err.Error())
 			errs <- err
 		}
 	}

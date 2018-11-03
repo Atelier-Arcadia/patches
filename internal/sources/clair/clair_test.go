@@ -1,6 +1,7 @@
 package clair
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -383,10 +384,10 @@ func serveSummariesWithoutNextPage(res http.ResponseWriter, req *http.Request) {
 {
   "Vulnerabilities": [
     {
-      "Name": "testvuln1"
+      "Name": "testsingle1"
     },
     {
-      "Name": "testvuln2"
+      "Name": "testsingle2"
     }
   ]
 }
