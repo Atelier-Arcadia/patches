@@ -5,6 +5,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/zsck/patches/pkg/pack"
+	"github.com/zsck/patches/pkg/vulnerability"
 )
 
 func TestSummarizeVulnerabilities(t *testing.T) {
@@ -209,7 +212,7 @@ func TestSourceImplementation(t *testing.T) {
 	}{
 		{
 			Description:    "Should serve all vulnerabilities from the Clair API",
-			RequestHandler: clairRouter(serveSummariesWithNextPage, serveFixedVulnDescription),
+			RequestHandler: clairRouter(serveSummariesWithNextPage(), serveFixedVulnDescription),
 			TargetPlatform: Debian8,
 			ExpectError:    false,
 			ExpectedVulns: []vulnerability.Vulnerability{
@@ -219,7 +222,41 @@ func TestSourceImplementation(t *testing.T) {
 					AffectedPlatformName: "debian:8",
 					DetailsHref:          "address.website",
 					SeverityRating:       vulnerability.SeverityLow,
-					FixeInPackages: []pack.Package{
+					FixedInPackages: []pack.Package{
+						{
+							Name:    "testpackage",
+							Version: "1.2.3",
+						},
+						{
+							Name:    "testpackage",
+							Version: "3.2.1",
+						},
+					},
+				},
+				{
+					Name:                 "testvulnfull",
+					AffectedPackageName:  "testpackage",
+					AffectedPlatformName: "debian:8",
+					DetailsHref:          "address.website",
+					SeverityRating:       vulnerability.SeverityLow,
+					FixedInPackages: []pack.Package{
+						{
+							Name:    "testpackage",
+							Version: "1.2.3",
+						},
+						{
+							Name:    "testpackage",
+							Version: "3.2.1",
+						},
+					},
+				},
+				{
+					Name:                 "testvulnfull",
+					AffectedPackageName:  "testpackage",
+					AffectedPlatformName: "debian:8",
+					DetailsHref:          "address.website",
+					SeverityRating:       vulnerability.SeverityLow,
+					FixedInPackages: []pack.Package{
 						{
 							Name:    "testpackage",
 							Version: "1.2.3",
@@ -275,6 +312,7 @@ func TestSourceImplementation(t *testing.T) {
 			for {
 				select {
 				case vuln := <-vulnChan:
+					t.Logf("Got vuln: %v", vuln)
 					vulns = append(vulns, vuln)
 
 				case <-done:
