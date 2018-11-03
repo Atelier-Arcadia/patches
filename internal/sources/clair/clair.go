@@ -115,6 +115,7 @@ func __collect(
 	base, err := url.Parse(cfg.BaseURL)
 	if err != nil {
 		errs <- err
+		finished <- done.Done{}
 		return
 	}
 
@@ -140,6 +141,7 @@ func __describe(
 	base, err := url.Parse(cfg.BaseURL)
 	if err != nil {
 		errs <- err
+		finished <- done.Done{}
 		return
 	}
 
@@ -150,6 +152,7 @@ func __describe(
 	response, err := http.Get(toReq.String())
 	if err != nil {
 		errs <- err
+		finished <- done.Done{}
 		return
 	}
 	defer response.Body.Close()
@@ -159,11 +162,13 @@ func __describe(
 	decodeErr := decoder.Decode(&respJSON)
 	if decodeErr != nil {
 		errs <- decodeErr
+		finished <- done.Done{}
 		return
 	}
 
 	if errMsg, convertErr := __toErrorResponse(respJSON); convertErr == nil {
 		errs <- errors.New(errMsg.Error.Message)
+		finished <- done.Done{}
 		return
 	}
 	if description, convertErr := __toDescriptionResponse(respJSON); convertErr == nil {
