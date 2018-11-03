@@ -265,7 +265,10 @@ func TestSourceImplementation(t *testing.T) {
 			clair := ClairAPIv1{
 				BaseURL: server.URL,
 			}
-			vulnChan, done, errs := StreamVulnerabilities(clair, testCase.TargetPlatform)
+			vulnChan, done, errs := NewStream(
+				clair,
+				testCase.TargetPlatform,
+			).Vulnerabilities()
 
 			vulns := []vulnerability.Vulnerability{}
 		readall:

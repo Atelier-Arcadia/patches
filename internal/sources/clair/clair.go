@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/zsck/patches/pkg/done"
+	"github.com/zsck/patches/pkg/vulnerability"
 )
 
 const vulnSummariesWithoutPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?limit=100"
@@ -17,6 +18,12 @@ const vulnDescriptionEndptFmt string = "/v1/namespaces/%s/vulnerabilities/%s"
 // ClairAPIv1 contains the configuration required to communicate with V1 of the Clair API.
 type ClairAPIv1 struct {
 	BaseURL string
+}
+
+// Stream implements the Source
+type Stream struct {
+	config   ClairAPIv1
+	platform Platform
 }
 
 // Platform describes a Linux distribution for which the Clair API can provide
@@ -66,12 +73,13 @@ type errorResponse struct {
 	Error message `json:"Error"`
 }
 
-func GetVulnSummaries(
-	config ClairAPIv1,
-	platform Platform,
-) (<-chan summary, <-chan done.Done, <-chan error) {
-	s, d, e := summarizeVulnerabilities(config, platform)
-	return s, d, e
+// NewStream constructs a new stream from which vulnerabilitiies affecting
+// packages for a particular platform can be streamed.
+func NewStream(config ClairAPIv1, platform Platform) Stream {
+	return Stream{
+		config,
+		platform,
+	}
 }
 
 // summarizeVulnerabilities runs a goroutine that streams out summaries of
@@ -313,4 +321,60 @@ func __toDescriptionResponse(jsonData map[string]interface{}) (descriptionRespon
 
 func (p Platform) String() string {
 	return p.distro + ":" + p.version
+}
+
+func (stream Stream) Vulnerabilities() (
+	<-chan vulnerability.Vulnerability,
+	<-chan done.Done,
+	<-chan error,
+) {
+	vulns := make(chan Vulnerability)
+	finished := make(chan done.Done)
+	errs := make(chan error)
+
+	go __stream(stream, vulns, finished, errs)
+	return vulns, finished, errs
+}
+
+func __stream(stream Stream, vulns chan<- vulnerability.Vulnerability, errs chan<- error) {
+	summaries, sumFinished, sumErrs := summarizeVulnerabilities(stream.config, stream.platform)
+readall:
+	for {
+		select {
+		case sum := <-summaries:
+			go __fetchDescription(stream, sum, vulns, errs)
+
+		case <-sumFinished:
+			break readall
+
+		case err := <-sumErrs:
+			errs <- err
+		}
+	}
+}
+
+func __fetchDescription(
+	stream Stream,
+	sum summary,
+	vulns chan<- vulnerability.Vulnerability,
+	errs chan<- error,
+) {
+	descriptions, descFinished, descErrs := describeVulnerability(
+		stream.config,
+		sum.Name,
+		stream.platform)
+
+readall:
+	for {
+		select {
+		case description := <-descriptions:
+			vulns <- toVulnerability(description)
+
+		case <-descFinished:
+			break readall
+
+		case err := descErrs:
+			errs <- err
+		}
+	}
 }
