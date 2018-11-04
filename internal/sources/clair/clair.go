@@ -210,30 +210,39 @@ func __describe(
 	endpt, _ := url.Parse(ext)
 	toReq := base.ResolveReference(endpt)
 
+	fmt.Printf("Making request for %s\n", toReq.String())
 	response, err := http.Get(toReq.String())
 	if err != nil {
+		fmt.Printf("Got error making request %s\n", err.Error())
 		errs <- err
 		finished <- done.Done{}
 		return
 	}
 	defer response.Body.Close()
+	fmt.Printf("Got status code %d\n", response.StatusCode)
 
 	respJSON := map[string]interface{}{}
 	decoder := json.NewDecoder(response.Body)
 	decodeErr := decoder.Decode(&respJSON)
 	if decodeErr != nil {
+		fmt.Printf("Got error %s\n", decodeErr.Error())
 		errs <- decodeErr
 		finished <- done.Done{}
 		return
 	}
+	fmt.Printf("Decoded to JSON\n")
 
 	if errMsg, convertErr := __toErrorResponse(respJSON); convertErr == nil {
+		fmt.Printf("Got error %s\n", errMsg.Error.Message)
 		errs <- errors.New(errMsg.Error.Message)
 		finished <- done.Done{}
 		return
 	}
 	if description, convertErr := __toDescriptionResponse(respJSON); convertErr == nil {
+		fmt.Printf("Wrote a vulnerability description: %v\n", description)
 		descriptions <- description.Vulnerability
+	} else {
+		fmt.Printf("Failed to decode to a description\n")
 	}
 	finished <- done.Done{}
 }
@@ -328,25 +337,30 @@ func __toDescriptionResponse(jsonData map[string]interface{}) (descriptionRespon
 	desc := descriptionResponse{}
 	theError := errors.New("Not a vulnerability description")
 
-	if name, ok := jsonData["Name"].(string); ok {
+	vulnBlob, ok := jsonData["Vulnerability"].(map[string]interface{})
+	if !ok {
+		return descriptionResponse{}, theError
+	}
+
+	if name, ok := vulnBlob["Name"].(string); ok {
 		desc.Vulnerability.Name = name
 	} else {
 		return descriptionResponse{}, theError
 	}
 
-	if link, ok := jsonData["Link"].(string); ok {
+	if link, ok := vulnBlob["Link"].(string); ok {
 		desc.Vulnerability.Link = link
 	} else {
 		return descriptionResponse{}, theError
 	}
 
-	if severity, ok := jsonData["Severity"].(string); ok {
+	if severity, ok := vulnBlob["Severity"].(string); ok {
 		desc.Vulnerability.Severity = severity
 	} else {
 		return descriptionResponse{}, theError
 	}
 
-	if fixBlobs, ok := jsonData["FixedIn"].([]interface{}); ok {
+	if fixBlobs, ok := vulnBlob["FixedIn"].([]interface{}); ok {
 		for _, blob := range fixBlobs {
 			newFix := fix{}
 			fixJSON, _ := blob.(map[string]interface{})
@@ -396,14 +410,21 @@ func __stream(
 	errs chan<- error,
 ) {
 	summaries, sumFinished, sumErrs := summarizeVulnerabilities(stream.config, stream.platform)
-readall:
-	for {
+	finishedSummarizing := false
+	jobsFinished := make(chan done.Done)
+	jobs := 0
+
+	for jobs > 0 || !finishedSummarizing {
 		select {
 		case sum := <-summaries:
-			go __fetchDescription(stream, sum, vulns, errs)
+			go __fetchDescription(stream, sum, vulns, jobsFinished, errs)
+			jobs++
 
 		case <-sumFinished:
-			break readall
+			finishedSummarizing = true
+
+		case <-jobsFinished:
+			jobs--
 
 		case err := <-sumErrs:
 			errs <- err
@@ -417,6 +438,7 @@ func __fetchDescription(
 	stream Stream,
 	sum summary,
 	vulns chan<- vulnerability.Vulnerability,
+	finished chan<- done.Done,
 	errs chan<- error,
 ) {
 	descriptions, descFinished, descErrs := describeVulnerability(
@@ -443,4 +465,6 @@ readall:
 			errs <- err
 		}
 	}
+
+	finished <- done.Done{}
 }
