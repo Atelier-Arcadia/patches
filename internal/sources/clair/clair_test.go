@@ -23,8 +23,8 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 			RequestHandler: serveSummariesWithoutNextPage,
 			TargetPlatform: Debian8,
 			ExpectedSummaries: []summary{
-				{Name: "testvuln1"},
-				{Name: "testvuln2"},
+				{Name: "testsingle1"},
+				{Name: "testsingle2"},
 			},
 			ExpectError: false,
 		},
