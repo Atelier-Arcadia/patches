@@ -39,7 +39,7 @@ func TestScannerImplementation(t *testing.T) {
 	for caseNum, testCase := range testCases {
 		t.Logf("Running TestScannerImplementation case #%d: %s\n", caseNum, testCase.Description)
 
-		scanner := NewScanner()
+		scanner := NewScanner(pack.VersionRegexMatch)
 
 		wasFound, err := scanner.Scan(testCase.Package)
 

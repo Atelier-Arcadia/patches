@@ -6,6 +6,11 @@ type Scanner interface {
 	Scan(Package) (Found, error)
 }
 
+// VersionCompareFunc is the type of a function that can compare one version
+// string against another to determine if the versions match some criteria
+// indicating that a version of a package was found.
+type VersionCompareFunc func(string, string) Found
+
 // Package describes a software package that may be installed on a host.
 type Package struct {
 	Name    string `json:"name"`
