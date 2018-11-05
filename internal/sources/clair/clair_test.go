@@ -269,29 +269,27 @@ func TestSourceImplementation(t *testing.T) {
 				},
 			},
 		},
-		/*
-			{
-				Description:    "Should not serve unpatched vulnerabilities",
-				RequestHandler: clairRouter(serveSummariesWithoutNextPage, serveUnfixedVulnDescription),
-				TargetPlatform: Debian8,
-				ExpectError:    false,
-				ExpectedVulns:  []vulnerability.Vulnerability{},
-			},
-			{
-				Description:    "Should return errors from the API (case 1)",
-				RequestHandler: clairRouter(serveError, serveUnfixedVulnDescription),
-				TargetPlatform: Debian8,
-				ExpectError:    true,
-				ExpectedVulns:  []vulnerability.Vulnerability{},
-			},
-			{
-				Description:    "Should return errors from the API (case 2)",
-				RequestHandler: clairRouter(serveSummariesWithoutNextPage, serveError),
-				TargetPlatform: Debian8,
-				ExpectError:    true,
-				ExpectedVulns:  []vulnerability.Vulnerability{},
-			},
-		*/
+		{
+			Description:    "Should not serve unpatched vulnerabilities",
+			RequestHandler: clairRouter(serveSummariesWithoutNextPage, serveUnfixedVulnDescription),
+			TargetPlatform: Debian8,
+			ExpectError:    false,
+			ExpectedVulns:  []vulnerability.Vulnerability{},
+		},
+		{
+			Description:    "Should return errors from the API (case 1)",
+			RequestHandler: clairRouter(serveError, serveUnfixedVulnDescription),
+			TargetPlatform: Debian8,
+			ExpectError:    true,
+			ExpectedVulns:  []vulnerability.Vulnerability{},
+		},
+		{
+			Description:    "Should return errors from the API (case 2)",
+			RequestHandler: clairRouter(serveSummariesWithoutNextPage, serveError),
+			TargetPlatform: Debian8,
+			ExpectError:    true,
+			ExpectedVulns:  []vulnerability.Vulnerability{},
+		},
 	}
 
 	for caseNum, testCase := range testCases {
