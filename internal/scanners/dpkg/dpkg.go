@@ -8,16 +8,21 @@ import (
 	"github.com/zsck/patches/pkg/pack"
 )
 
+// DPKG is a Scanner that searches for installed packages by invoking dpkg.
 type DPKG struct {
 	compareFn pack.VersionCompareFunc
 }
 
+// NewScanner constructs a new DPKG that will compare versions using a
+// given comparison function.
 func NewScanner(cmp pack.VersionCompareFunc) DPKG {
 	return DPKG{
 		compareFn: cmp,
 	}
 }
 
+// Scan invokes dpkg, parses the output for lines containing findings,
+// and then searches for the package being inquired about specifically.
 func (dpkg DPKG) Scan(pkg pack.Package) (pack.Found, error) {
 	output, err := exec.Command("dpkg", "-l", pkg.Name).Output()
 	if err != nil {
