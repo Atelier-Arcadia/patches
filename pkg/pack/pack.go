@@ -15,3 +15,8 @@ type Package struct {
 // Found is a descriptive alias for a boolean produced by a Scanner that has
 // performed a scan for a particular package.
 type Found bool
+
+const (
+	WasFound Found = true
+	NotFound Found = false
+)
