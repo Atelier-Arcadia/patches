@@ -210,39 +210,31 @@ func __describe(
 	endpt, _ := url.Parse(ext)
 	toReq := base.ResolveReference(endpt)
 
-	fmt.Printf("Making request for %s\n", toReq.String())
 	response, err := http.Get(toReq.String())
 	if err != nil {
-		fmt.Printf("Got error making request %s\n", err.Error())
 		errs <- err
 		finished <- done.Done{}
 		return
 	}
 	defer response.Body.Close()
-	fmt.Printf("Got status code %d\n", response.StatusCode)
 
 	respJSON := map[string]interface{}{}
 	decoder := json.NewDecoder(response.Body)
 	decodeErr := decoder.Decode(&respJSON)
 	if decodeErr != nil {
-		fmt.Printf("Got error %s\n", decodeErr.Error())
 		errs <- decodeErr
 		finished <- done.Done{}
 		return
 	}
-	fmt.Printf("Decoded to JSON\n")
 
 	if errMsg, convertErr := __toErrorResponse(respJSON); convertErr == nil {
-		fmt.Printf("Got error %s\n", errMsg.Error.Message)
 		errs <- errors.New(errMsg.Error.Message)
 		finished <- done.Done{}
 		return
 	}
 	if description, convertErr := __toDescriptionResponse(respJSON); convertErr == nil {
-		fmt.Printf("Wrote a vulnerability description: %v\n", description)
 		descriptions <- description.Vulnerability
 	} else {
-		fmt.Printf("Failed to decode to a description\n")
 	}
 	finished <- done.Done{}
 }
@@ -446,22 +438,17 @@ func __fetchDescription(
 		sum.Name,
 		stream.platform)
 
-	fmt.Println("Fetching description")
-
 readall:
 	for {
 		select {
 		case desc := <-descriptions:
-			fmt.Println("got a vuln desc")
 			vulns <- toVulnerability(desc, stream.platform)
 			break readall
 
 		case <-descFinished:
-			fmt.Println("descFinished")
 			break readall
 
 		case err := <-descErrs:
-			fmt.Println("descErr", err.Error())
 			errs <- err
 		}
 	}
