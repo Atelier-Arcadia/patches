@@ -57,7 +57,7 @@ func TestScannerImplementation(t *testing.T) {
 }
 
 func isDpkgInstalled() bool {
-	output, err := exec.Command("banana").Output()
+	output, err := exec.Command("dpkg", "--h").Output()
 
 	if err != nil {
 		return false
