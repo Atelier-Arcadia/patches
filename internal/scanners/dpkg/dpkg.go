@@ -27,29 +27,47 @@ func (dpkg DPKG) Scan(pkg pack.Package) (pack.Found, error) {
 		return pack.NotFound, err
 	}
 
-	for _, bytesLine := range bytes.Split(output, []byte("\n")) {
+	packagesFound := parseDpkgOutput(output)
+	for _, found := range packagesFound {
+		containsName := strings.Contains(found.Name, pkg.Name)
+		sameVersion := dpkg.compareFn(pkg.Version, found.Version) == pack.WasFound
+
+		if containsName && sameVersion {
+			return pack.WasFound, nil
+		}
+	}
+	return pack.NotFound, nil
+}
+
+func parseDpkgOutput(output []byte) []pack.Package {
+	lines := bytes.Split(output, []byte("\n"))
+	packages := []pack.Package{}
+
+	for _, bytesLine := range lines {
 		bytesLine = bytes.Trim(bytesLine, "\t\r ")
 		strLine := string(bytesLine)
 
 		if strings.Contains(strLine, "ii") {
-			encounteredName := false
+			encounteredName := ""
 			tokens := strings.Split(strLine, " ")
 
 			for _, token := range tokens {
 				if len(token) < 2 || token == "ii" {
 					continue
 				}
-				if encounteredName {
-					// Found the version
-					version := token
-					return dpkg.compareFn(pkg.Version, version), nil
-				}
-				if strings.Contains(pkg.Name, token) {
-					encounteredName = true
+				if encounteredName == "" {
+					encounteredName = token
 					continue
+				} else {
+					packages = append(packages, pack.Package{
+						Name:    encounteredName,
+						Version: token,
+					})
+					break
 				}
 			}
 		}
 	}
-	return pack.NotFound, nil
+
+	return packages
 }
