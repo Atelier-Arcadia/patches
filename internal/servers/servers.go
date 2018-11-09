@@ -1,15 +1,19 @@
 package servers
 
 import (
-	"fmt"
 	"net/http"
+
+	"github.com/zsck/patches/pkg/vulnerability"
 )
 
 type ClairVulnServer struct {
+	vulnSource vulnerability.Source
 }
 
-func NewClairVulnServer() ClairVulnServer {
-	return ClairVulnServer{}
+func NewClairVulnServer(source vulnerability.Source) ClairVulnServer {
+	return ClairVulnServer{
+		vulnSource: source,
+	}
 }
 
 func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
