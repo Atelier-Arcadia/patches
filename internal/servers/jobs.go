@@ -3,7 +3,7 @@ package servers
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/zsck/patches/pkg/done"
@@ -66,9 +66,9 @@ func NewFetchVulnsJob(
 
 // Register attempts to add a new job to the manager, returning an ID that
 // must be provided during lookups.
-func (jobs VulnJobManager) Register(job FetchVulnsJob) (string, error) {
+func (jobs *VulnJobManager) Register(job FetchVulnsJob) (string, error) {
 	if jobs.numManaged >= jobs.maxJobs {
-		return "", errors.New("job queue full; try again later")
+		return "", fmt.Errorf("job queue full; try again later")
 	}
 
 	newID := generateID(numJobIDBytes, func(id string) bool {
@@ -82,13 +82,13 @@ func (jobs VulnJobManager) Register(job FetchVulnsJob) (string, error) {
 }
 
 // Retrieve finds a job being handled by the manager and reads results from it.
-func (jobs VulnJobManager) Retrieve(jobID string) ([]vulnerability.Vulnerability, []error) {
+func (jobs *VulnJobManager) Retrieve(jobID string) ([]vulnerability.Vulnerability, []error) {
 	job, found := jobs.managing[jobID]
 	vulns := []vulnerability.Vulnerability{}
 	errs := []error{}
 
 	if !found {
-		return []vulnerability.Vulnerability{}, []error{errors.New("no such job")}
+		return []vulnerability.Vulnerability{}, []error{fmt.Errorf("no such job")}
 	}
 
 	stopAt := time.Now().Add(jobs.maxReadTime)
