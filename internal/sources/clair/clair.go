@@ -9,6 +9,7 @@ import (
 
 	"github.com/zsck/patches/pkg/done"
 	"github.com/zsck/patches/pkg/pack"
+	"github.com/zsck/patches/pkg/platform"
 	"github.com/zsck/patches/pkg/vulnerability"
 )
 
@@ -23,23 +24,8 @@ type ClairAPIv1 struct {
 
 // Stream implements the Source
 type Stream struct {
-	config   ClairAPIv1
-	platform Platform
+	config ClairAPIv1
 }
-
-// Platform describes a Linux distribution for which the Clair API can provide
-// information about vulnerable packages.
-type Platform struct {
-	distro  string
-	version string
-}
-
-var (
-	Debian8 Platform = Platform{
-		distro:  "debian",
-		version: "8",
-	}
-)
 
 type summary struct {
 	Name string `json:"Name"`
@@ -76,10 +62,9 @@ type errorResponse struct {
 
 // NewStream constructs a new stream from which vulnerabilitiies affecting
 // packages for a particular platform can be streamed.
-func NewStream(config ClairAPIv1, platform Platform) Stream {
+func NewStream(config ClairAPIv1) Stream {
 	return Stream{
 		config,
-		platform,
 	}
 }
 
@@ -382,7 +367,7 @@ func (p Platform) String() string {
 	return p.distro + ":" + p.version
 }
 
-func (stream Stream) Vulnerabilities() (
+func (stream Stream) Vulnerabilities(pform platform.Platform) (
 	<-chan vulnerability.Vulnerability,
 	<-chan done.Done,
 	<-chan error,
@@ -391,17 +376,18 @@ func (stream Stream) Vulnerabilities() (
 	finished := make(chan done.Done)
 	errs := make(chan error)
 
-	go __stream(stream, vulns, finished, errs)
+	go __stream(stream, pform, vulns, finished, errs)
 	return vulns, finished, errs
 }
 
 func __stream(
 	stream Stream,
+	pform platform.Platform,
 	vulns chan<- vulnerability.Vulnerability,
 	finished chan<- done.Done,
 	errs chan<- error,
 ) {
-	summaries, sumFinished, sumErrs := summarizeVulnerabilities(stream.config, stream.platform)
+	summaries, sumFinished, sumErrs := summarizeVulnerabilities(stream.config, pform)
 	finishedSummarizing := false
 	jobsFinished := make(chan done.Done)
 	jobs := 0
@@ -436,13 +422,13 @@ func __fetchDescription(
 	descriptions, descFinished, descErrs := describeVulnerability(
 		stream.config,
 		sum.Name,
-		stream.platform)
+		stream.pform)
 
 readall:
 	for {
 		select {
 		case desc := <-descriptions:
-			vulns <- toVulnerability(desc, stream.platform)
+			vulns <- toVulnerability(desc, stream.pform)
 			break readall
 
 		case <-descFinished:
