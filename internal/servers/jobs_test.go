@@ -53,7 +53,7 @@ func TestRegister(t *testing.T) {
 	}
 }
 
-func TestLookup(t *testing.T) {
+func TestRetrieve(t *testing.T) {
 	testCases := []struct {
 		Description     string
 		UseReturnedID   bool
@@ -72,11 +72,10 @@ func TestLookup(t *testing.T) {
 	}
 
 	for caseNum, testCase := range testCases {
-		t.Logf("Running TestLookup case #%d: %s", caseNum, testCase.Description)
+		t.Logf("Running TestRetrieve case #%d: %s", caseNum, testCase.Description)
 
 		jobManager := NewVulnJobManager(VulnJobManagerOptions{
-			MaxJobs:   10,
-			QueueSize: 10,
+			MaxJobs: 10,
 		})
 		jobID, err := jobManager.Register(NewFetchVulnsJob(
 			make(chan vulnerability.Vulnerability),
@@ -91,7 +90,8 @@ func TestLookup(t *testing.T) {
 			id = jobID
 		}
 
-		_, found := jobManager.Lookup(id)
+		_, errs := jobManager.Retrieve(id)
+		found := len(errs) > 0
 		if !found && testCase.ExpectToFindJob {
 			t.Errorf("Expected to find job '%s' but did not", id)
 		} else if found && !testCase.ExpectToFindJob {
