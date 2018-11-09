@@ -9,6 +9,7 @@ import (
 
 	"github.com/zsck/patches/pkg/done"
 	"github.com/zsck/patches/pkg/pack"
+	"github.com/zsck/patches/pkg/platform"
 	"github.com/zsck/patches/pkg/vulnerability"
 )
 
@@ -175,7 +176,7 @@ func serveError(errMsg string) mockSource {
 	}
 }
 
-func (mock mockSource) Vulnerabilities() (
+func (mock mockSource) Vulnerabilities(_ platform.Platform) (
 	<-chan vulnerability.Vulnerability,
 	<-chan done.Done,
 	<-chan error,

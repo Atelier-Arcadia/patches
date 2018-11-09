@@ -65,17 +65,19 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	requestID, found := qs["requestID"]
+	requestIDs, found := qs["requestID"]
+	var requestID string
 	var vulns []vulnerability.Vulnerability
 	var err error
 	if found {
+		requestID = requestIDs[0]
 		vulns, err = server.__runJob(requestID, pform)
 	} else {
 		requestID, vulns, err = server.__newJob(pform)
 	}
 
 	if err != nil {
-		http.WriteHeaer(http.StatusBadRequest)
+		res.WriteHeader(http.StatusBadRequest)
 		errMsg := "invalid request id"
 
 		response.Encode(vulnsResponse{
@@ -88,4 +90,19 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 		Vulnerabilities: vulns,
 		RequestID:       requestID,
 	})
+}
+
+func (server ClairVulnServer) __runJob(
+	id string,
+	pform platform.Platform,
+) ([]vulnerability.Vulnerability, error) {
+	return []vulnerability.Vulnerability{}, nil
+}
+
+func (server ClairVulnServer) __newJob(pform platform.Platform) (
+	string,
+	[]vulnerability.Vulnerability,
+	error,
+) {
+	return "", []vulnerability.Vulnerability{}, nil
 }
