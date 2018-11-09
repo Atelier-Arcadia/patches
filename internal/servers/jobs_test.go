@@ -2,6 +2,9 @@ package servers
 
 import (
 	"testing"
+
+	"github.com/zsck/patches/pkg/done"
+	"github.com/zsck/patches/pkg/vulnerability"
 )
 
 func TestRegister(t *testing.T) {
@@ -38,13 +41,14 @@ func TestRegister(t *testing.T) {
 	for caseNum, testCase := range testCases {
 		t.Logf("Running TestRegister case #%d: %s", caseNum, testCase.Description)
 
-		jobManager := NewVulnJobManager(JobManagerOptions{
+		jobManager := NewVulnJobManager(VulnJobManagerOptions{
 			MaxJobs:   testCase.MaxJobs,
 			QueueSize: testCase.QueueSize,
 		})
-		numErrors := 0
+		var numErrors uint = 0
 
-		for i := 0; i < testCase.NumJobsToRegister; i++ {
+		var i uint
+		for i = 0; i < testCase.NumJobsToRegister; i++ {
 			_, err := jobManager.Register(NewFetchVulnsJob(
 				make(chan vulnerability.Vulnerability),
 				make(chan done.Done),
@@ -81,7 +85,7 @@ func TestLookup(t *testing.T) {
 	for caseNum, testCase := range testCases {
 		t.Logf("Running TestLookup case #%d: %s", caseNum, testCase.Description)
 
-		jobManager := NewVulnJobManager(JobManagerOptions{
+		jobManager := NewVulnJobManager(VulnJobManagerOptions{
 			MaxJobs:   10,
 			QueueSize: 10,
 		})
@@ -98,7 +102,7 @@ func TestLookup(t *testing.T) {
 			id = jobID
 		}
 
-		job, found := jobManager.Lookup(id)
+		_, found := jobManager.Lookup(id)
 		if !found && testCase.ExpectToFindJob {
 			t.Errorf("Expected to find job '%s' but did not", id)
 		} else if found && !testCase.ExpectToFindJob {
