@@ -11,29 +11,19 @@ func TestRegister(t *testing.T) {
 	testCases := []struct {
 		Description       string
 		MaxJobs           uint
-		QueueSize         uint
 		NumJobsToRegister uint
 		NumExpectedErrors uint
 	}{
 		{
 			Description:       "Should be able to handle MaxJobs jobs",
 			MaxJobs:           10,
-			QueueSize:         0,
 			NumJobsToRegister: 10,
 			NumExpectedErrors: 0,
 		},
 		{
-			Description:       "Should be put in a queue after MaxJobs jobs created",
+			Description:       "Should get errors after MaxJobs jobs created",
 			MaxJobs:           1,
-			QueueSize:         10,
-			NumJobsToRegister: 5,
-			NumExpectedErrors: 0,
-		},
-		{
-			Description:       "Should get errors after MaxJobs jobs created and queue filled",
-			MaxJobs:           1,
-			QueueSize:         1,
-			NumJobsToRegister: 7,
+			NumJobsToRegister: 6,
 			NumExpectedErrors: 5,
 		},
 	}
@@ -42,8 +32,7 @@ func TestRegister(t *testing.T) {
 		t.Logf("Running TestRegister case #%d: %s", caseNum, testCase.Description)
 
 		jobManager := NewVulnJobManager(VulnJobManagerOptions{
-			MaxJobs:   testCase.MaxJobs,
-			QueueSize: testCase.QueueSize,
+			MaxJobs: testCase.MaxJobs,
 		})
 		var numErrors uint = 0
 
