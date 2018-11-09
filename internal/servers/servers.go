@@ -95,8 +95,8 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 func (server ClairVulnServer) __runJob(
 	id string,
 	pform platform.Platform,
-) ([]vulnerability.Vulnerability, error) {
-	return []vulnerability.Vulnerability{}, nil
+) ([]vulnerability.Vulnerability, []error) {
+	return []vulnerability.Vulnerability{}, []error{}
 }
 
 func (server ClairVulnServer) __newJob(pform platform.Platform) (
