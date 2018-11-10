@@ -10,7 +10,8 @@ import (
 )
 
 type ClairVulnServer struct {
-	vulnSource vulnerability.Source
+	source vulnerability.Source
+	jobs   VulnJobManager
 }
 
 type vulnsResponse struct {
@@ -19,9 +20,10 @@ type vulnsResponse struct {
 	Vulnerabilities []vulnerability.Vulnerability `json:"vulns"`
 }
 
-func NewClairVulnServer(source vulnerability.Source) ClairVulnServer {
+func NewClairVulnServer(source vulnerability.Source, opts VulnJobManagerOptions) ClairVulnServer {
 	return ClairVulnServer{
-		vulnSource: source,
+		source: source,
+		jobs:   NewVulnJobManager(opts),
 	}
 }
 
@@ -71,7 +73,7 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 	var errs []error
 	if found {
 		requestID = requestIDs[0]
-		vulns, errs = server.__runJob(requestID, pform)
+		vulns, errs = server.__runJob(requestID)
 	} else {
 		requestID, vulns, errs = server.__newJob(pform)
 	}
@@ -92,11 +94,9 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 	})
 }
 
-func (server ClairVulnServer) __runJob(
-	id string,
-	pform platform.Platform,
-) ([]vulnerability.Vulnerability, []error) {
-	return []vulnerability.Vulnerability{}, []error{}
+func (server ClairVulnServer) __runJob(id string) ([]vulnerability.Vulnerability, []error) {
+	vulns, errs := server.jobs.Retrieve(id)
+	return vulns, errs
 }
 
 func (server ClairVulnServer) __newJob(pform platform.Platform) (
@@ -104,5 +104,12 @@ func (server ClairVulnServer) __newJob(pform platform.Platform) (
 	[]vulnerability.Vulnerability,
 	[]error,
 ) {
-	return "", []vulnerability.Vulnerability{}, []error{}
+	vulns, finished, errs := server.source.Vulnerabilities(pform)
+	jobID, err := server.jobs.Register(NewFetchVulnsJob(vulns, finished, errs))
+	if err != nil {
+		return "", []vulnerability.Vulnerability{}, []error{err}
+	}
+
+	foundVulns, encounteredErrs := server.jobs.Retrieve(jobID)
+	return jobID, foundVulns, encounteredErrs
 }

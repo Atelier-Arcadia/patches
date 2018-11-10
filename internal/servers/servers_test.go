@@ -122,7 +122,8 @@ func TestClairVulnServer(t *testing.T) {
 		t.Logf("Running TestClairVulnServer case #%d: %s", caseNum, testCase.Description)
 
 		func() {
-			server := httptest.NewServer(NewClairVulnServer(testCase.VulnSource))
+			server := httptest.NewServer(
+				NewClairVulnServer(testCase.VulnSource, VulnJobManagerOptions{}))
 			defer server.Close()
 
 			url := server.URL + "/vulns?platform=debian%208"
@@ -195,6 +196,8 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) (
 	for i = 0; i < mock.NumToGenerate; i++ {
 		vulnName := fmt.Sprintf("testvuln%d", i+1)
 		pkgName := fmt.Sprintf("testpackage%d", i+1)
+
+		fmt.Printf("Writing vulnerability %s\n", vulnName)
 
 		vulns <- vulnerability.Vulnerability{
 			Name:                 vulnName,
