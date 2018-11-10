@@ -68,11 +68,11 @@ func NewStream(config ClairAPIv1) Stream {
 	}
 }
 
-func toVulnerability(desc description, platform Platform) vulnerability.Vulnerability {
+func toVulnerability(desc description, pform platform.Platform) vulnerability.Vulnerability {
 	vuln := vulnerability.Vulnerability{
 		Name:                 desc.Name,
 		AffectedPackageName:  desc.FixedIn[0].Name,
-		AffectedPlatformName: platform.String(),
+		AffectedPlatformName: pform.String(),
 		DetailsHref:          desc.Link,
 		SeverityRating:       toSeverity(desc.Severity),
 		FixedInPackages:      make([]pack.Package, len(desc.FixedIn)),
@@ -124,13 +124,13 @@ func toPackage(f fix) pack.Package {
 // vulnerabilities affecting a platform as described by the Clair v1 API.
 func summarizeVulnerabilities(
 	config ClairAPIv1,
-	platform Platform,
+	pform platform.Platform,
 ) (<-chan summary, <-chan done.Done, <-chan error) {
 	summaries := make(chan summary)
 	finished := make(chan done.Done)
 	errs := make(chan error)
 
-	go __collect(config, platform, summaries, finished, errs)
+	go __collect(config, pform, summaries, finished, errs)
 	return summaries, finished, errs
 }
 
@@ -139,13 +139,13 @@ func summarizeVulnerabilities(
 func describeVulnerability(
 	config ClairAPIv1,
 	vulnName string,
-	platform Platform,
+	pform platform.Platform,
 ) (<-chan description, <-chan done.Done, <-chan error) {
 	descriptions := make(chan description)
 	finished := make(chan done.Done)
 	errs := make(chan error)
 
-	go __describe(config, vulnName, platform, descriptions, finished, errs)
+	go __describe(config, vulnName, pform, descriptions, finished, errs)
 	return descriptions, finished, errs
 }
 
@@ -153,7 +153,7 @@ func describeVulnerability(
 // pages containing names of vulnerabilities for the platform requested.
 func __collect(
 	cfg ClairAPIv1,
-	platform Platform,
+	pform platform.Platform,
 	summaries chan<- summary,
 	finished chan<- done.Done,
 	errs chan<- error,
@@ -165,10 +165,10 @@ func __collect(
 		return
 	}
 
-	ext := fmt.Sprintf(vulnSummariesWithoutPageEndptFmt, platform)
+	ext := fmt.Sprintf(vulnSummariesWithoutPageEndptFmt, pform)
 	nextPage := __getSummaries(base, ext, summaries, errs)
 	for nextPage != "" {
-		ext = fmt.Sprintf(vulnSummariesWithPageEndptFmt, platform, nextPage)
+		ext = fmt.Sprintf(vulnSummariesWithPageEndptFmt, pform, nextPage)
 		nextPage = __getSummaries(base, ext, summaries, errs)
 	}
 	finished <- done.Done{}
@@ -179,7 +179,7 @@ func __collect(
 func __describe(
 	cfg ClairAPIv1,
 	vulnName string,
-	platform Platform,
+	pform platform.Platform,
 	descriptions chan<- description,
 	finished chan<- done.Done,
 	errs chan<- error,
@@ -191,7 +191,7 @@ func __describe(
 		return
 	}
 
-	ext := fmt.Sprintf(vulnDescriptionEndptFmt, platform, vulnName)
+	ext := fmt.Sprintf(vulnDescriptionEndptFmt, pform, vulnName)
 	endpt, _ := url.Parse(ext)
 	toReq := base.ResolveReference(endpt)
 
@@ -363,10 +363,6 @@ func __toDescriptionResponse(jsonData map[string]interface{}) (descriptionRespon
 	return desc, nil
 }
 
-func (p Platform) String() string {
-	return p.distro + ":" + p.version
-}
-
 func (stream Stream) Vulnerabilities(pform platform.Platform) (
 	<-chan vulnerability.Vulnerability,
 	<-chan done.Done,
@@ -395,7 +391,7 @@ func __stream(
 	for jobs > 0 || !finishedSummarizing {
 		select {
 		case sum := <-summaries:
-			go __fetchDescription(stream, sum, vulns, jobsFinished, errs)
+			go __fetchDescription(stream, pform, sum, vulns, jobsFinished, errs)
 			jobs++
 
 		case <-sumFinished:
@@ -414,6 +410,7 @@ func __stream(
 
 func __fetchDescription(
 	stream Stream,
+	pform platform.Platform,
 	sum summary,
 	vulns chan<- vulnerability.Vulnerability,
 	finished chan<- done.Done,
@@ -422,13 +419,13 @@ func __fetchDescription(
 	descriptions, descFinished, descErrs := describeVulnerability(
 		stream.config,
 		sum.Name,
-		stream.pform)
+		pform)
 
 readall:
 	for {
 		select {
 		case desc := <-descriptions:
-			vulns <- toVulnerability(desc, stream.pform)
+			vulns <- toVulnerability(desc, pform)
 			break readall
 
 		case <-descFinished:

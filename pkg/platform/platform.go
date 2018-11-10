@@ -13,3 +13,7 @@ var (
 		version: "8",
 	}
 )
+
+func (p Platform) String() string {
+	return p.distro + ":" + p.version
+}

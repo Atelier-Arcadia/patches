@@ -9,6 +9,8 @@ import (
 	"github.com/zsck/patches/pkg/vulnerability"
 )
 
+// ClairVulnServer is an HTTP server that serves requests for vulnerabilities affecting
+// a specified platform.
 type ClairVulnServer struct {
 	source vulnerability.Source
 	jobs   VulnJobManager
@@ -20,7 +22,11 @@ type vulnsResponse struct {
 	Vulnerabilities []vulnerability.Vulnerability `json:"vulns"`
 }
 
-func NewClairVulnServer(source vulnerability.Source, opts VulnJobManagerOptions) ClairVulnServer {
+// NewClairVulnServer constructs a new ClairVulnServer.
+func NewClairVulnServer(
+	source vulnerability.Source,
+	opts VulnJobManagerOptions,
+) ClairVulnServer {
 	return ClairVulnServer{
 		source: source,
 		jobs:   NewVulnJobManager(opts),
