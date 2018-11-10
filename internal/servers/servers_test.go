@@ -61,7 +61,7 @@ func TestClairVulnServer(t *testing.T) {
 						FixedInPackages: []pack.Package{
 							{
 								Name:    "testpackage2",
-								Version: "1.2.3",
+								Version: "3.2.1",
 							},
 						},
 					},
@@ -84,21 +84,21 @@ func TestClairVulnServer(t *testing.T) {
 						SeverityRating:       vulnerability.SeverityLow,
 						FixedInPackages: []pack.Package{
 							{
-								Name:    "testpackage",
+								Name:    "testpackage1",
 								Version: "3.2.1",
 							},
 						},
 					},
 					{
-						Name:                 "testvuln2",
-						AffectedPackageName:  "testpackage2",
+						Name:                 "testvuln1",
+						AffectedPackageName:  "testpackage1",
 						AffectedPlatformName: "debian 8",
 						DetailsHref:          "website.com",
 						SeverityRating:       vulnerability.SeverityLow,
 						FixedInPackages: []pack.Package{
 							{
-								Name:    "testpackage2",
-								Version: "1.2.3",
+								Name:    "testpackage1",
+								Version: "3.2.1",
 							},
 						},
 					},
@@ -182,9 +182,10 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) (
 	<-chan done.Done,
 	<-chan error,
 ) {
+
 	vulns := make(chan vulnerability.Vulnerability)
-	finished := make(chan done.Done)
-	errs := make(chan error)
+	finished := make(chan done.Done, 1)
+	errs := make(chan error, 1)
 
 	if mock.NumToGenerate == 0 {
 		errs <- fmt.Errorf("%s", mock.ErrorMessage)
@@ -192,28 +193,29 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) (
 		return vulns, finished, errs
 	}
 
-	var i uint
-	for i = 0; i < mock.NumToGenerate; i++ {
-		vulnName := fmt.Sprintf("testvuln%d", i+1)
-		pkgName := fmt.Sprintf("testpackage%d", i+1)
+	go func() {
+		var i uint
+		for i = 0; i < mock.NumToGenerate; i++ {
+			vulnName := fmt.Sprintf("testvuln%d", i+1)
+			pkgName := fmt.Sprintf("testpackage%d", i+1)
 
-		fmt.Printf("Writing vulnerability %s\n", vulnName)
-
-		vulns <- vulnerability.Vulnerability{
-			Name:                 vulnName,
-			AffectedPackageName:  pkgName,
-			AffectedPlatformName: "debian 8",
-			DetailsHref:          "website.com",
-			SeverityRating:       vulnerability.SeverityLow,
-			FixedInPackages: []pack.Package{
-				{
-					Name:    pkgName,
-					Version: "3.2.1",
+			vulns <- vulnerability.Vulnerability{
+				Name:                 vulnName,
+				AffectedPackageName:  pkgName,
+				AffectedPlatformName: "debian 8",
+				DetailsHref:          "website.com",
+				SeverityRating:       vulnerability.SeverityLow,
+				FixedInPackages: []pack.Package{
+					{
+						Name:    pkgName,
+						Version: "3.2.1",
+					},
 				},
-			},
+			}
 		}
-	}
 
-	finished <- done.Done{}
+		finished <- done.Done{}
+	}()
+
 	return vulns, finished, errs
 }

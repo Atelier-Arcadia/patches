@@ -14,7 +14,7 @@ type VersionCompareFunc func(string, string) Found
 // Package describes a software package that may be installed on a host.
 type Package struct {
 	Name    string `json:"name"`
-	Version string `json:"name"`
+	Version string `json:"version"`
 }
 
 // Found is a descriptive alias for a boolean produced by a Scanner that has
@@ -25,3 +25,8 @@ const (
 	WasFound Found = true
 	NotFound Found = false
 )
+
+// Equals determines whether two packages describe the same thing.
+func (pkg Package) Equals(other Package) bool {
+	return pkg.Name == other.Name && pkg.Version == other.Version
+}

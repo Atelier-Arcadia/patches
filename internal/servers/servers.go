@@ -71,7 +71,8 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 	var requestID string
 	var vulns []vulnerability.Vulnerability
 	var errs []error
-	if found {
+
+	if found && len(requestIDs) > 0 {
 		requestID = requestIDs[0]
 		vulns, errs = server.__runJob(requestID)
 	} else {
@@ -105,6 +106,7 @@ func (server ClairVulnServer) __newJob(pform platform.Platform) (
 	[]error,
 ) {
 	vulns, finished, errs := server.source.Vulnerabilities(pform)
+
 	jobID, err := server.jobs.Register(NewFetchVulnsJob(vulns, finished, errs))
 	if err != nil {
 		return "", []vulnerability.Vulnerability{}, []error{err}
