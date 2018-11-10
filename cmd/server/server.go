@@ -4,9 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/zsck/patches/internal/servers"
 	"github.com/zsck/patches/internal/sources/clair"
+
+	"github.com/zsck/patches/internal/limit"
 )
 
 func main() {
@@ -22,10 +25,11 @@ func main() {
 	clairConfig := clair.ClairAPIv1{
 		BaseURL: *baseAddr,
 	}
+	rateLimit := limit.ConstantRateLimiter(15 * time.Millisecond)
 	options := servers.VulnJobManagerOptions{
 		MaxJobs: *maxJobs,
 	}
-	vulns := clair.NewStream(clairConfig)
+	vulns := clair.NewStream(clairConfig, rateLimit)
 	server := servers.NewClairVulnServer(vulns, options)
 
 	http.Handle("/", server)

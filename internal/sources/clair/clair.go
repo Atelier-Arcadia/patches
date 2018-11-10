@@ -11,6 +11,8 @@ import (
 	"github.com/zsck/patches/pkg/pack"
 	"github.com/zsck/patches/pkg/platform"
 	"github.com/zsck/patches/pkg/vulnerability"
+
+	"github.com/zsck/patches/internal/limit"
 )
 
 const vulnSummariesWithoutPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?limit=100"
@@ -25,6 +27,7 @@ type ClairAPIv1 struct {
 // Stream implements the Source
 type Stream struct {
 	config ClairAPIv1
+	block  limit.RateLimiter
 }
 
 type summary struct {
@@ -62,9 +65,10 @@ type errorResponse struct {
 
 // NewStream constructs a new stream from which vulnerabilitiies affecting
 // packages for a particular platform can be streamed.
-func NewStream(config ClairAPIv1) Stream {
+func NewStream(config ClairAPIv1, limiter limit.RateLimiter) Stream {
 	return Stream{
 		config,
+		limiter,
 	}
 }
 
