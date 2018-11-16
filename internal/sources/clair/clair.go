@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/zsck/patches/pkg/done"
 	"github.com/zsck/patches/pkg/pack"
 	"github.com/zsck/patches/pkg/platform"
@@ -164,6 +166,8 @@ func __collect(
 ) {
 	base, err := url.Parse(cfg.BaseURL)
 	if err != nil {
+		log.Errorf("Error encountered in __collect: '%s'", err.Error())
+		fmt.Println("Called log.Log in __collect")
 		errs <- err
 		finished <- done.Done{}
 		return
@@ -190,6 +194,8 @@ func __describe(
 ) {
 	base, err := url.Parse(cfg.BaseURL)
 	if err != nil {
+		log.Errorf("Encountered an error in __describe: '%s'", err.Error())
+		fmt.Println("Called log.Log in __describe")
 		errs <- err
 		finished <- done.Done{}
 		return
@@ -201,6 +207,7 @@ func __describe(
 
 	response, err := http.Get(toReq.String())
 	if err != nil {
+		log.Errorf("Encountered an error in __describe: '%s'", err.Error())
 		errs <- err
 		finished <- done.Done{}
 		return
@@ -211,12 +218,14 @@ func __describe(
 	decoder := json.NewDecoder(response.Body)
 	decodeErr := decoder.Decode(&respJSON)
 	if decodeErr != nil {
+		log.Errorf("Encountered an error in __describe: '%s'", decodeErr.Error())
 		errs <- decodeErr
 		finished <- done.Done{}
 		return
 	}
 
 	if errMsg, convertErr := __toErrorResponse(respJSON); convertErr == nil {
+		log.Errorf("Clair responded with an error: '%s'", errMsg.Error.Message)
 		errs <- errors.New(errMsg.Error.Message)
 		finished <- done.Done{}
 		return
@@ -241,6 +250,7 @@ func __getSummaries(
 
 	response, err := http.Get(toReq.String())
 	if err != nil {
+		log.Errorf("Encountered an error in __getSummaries: '%s'", err)
 		errs <- err
 		return ""
 	}
@@ -250,11 +260,13 @@ func __getSummaries(
 	decoder := json.NewDecoder(response.Body)
 	decodeErr := decoder.Decode(&respJSON)
 	if decodeErr != nil {
+		log.Errorf("Encountered an error in __getSummaries: '%s'", decodeErr)
 		errs <- decodeErr
 		return ""
 	}
 
 	if errMsg, convertErr := __toErrorResponse(respJSON); convertErr == nil {
+		log.Errorf("Clair responded with an error: '%s'", errMsg.Error.Message)
 		errs <- errors.New(errMsg.Error.Message)
 		return ""
 	}

@@ -4,3 +4,6 @@ unit-test:
 test:
 	docker build -t patches .
 	docker-compose up --abort-on-container-exit
+
+deps:
+	go get github.com/Sirupsen/logrus

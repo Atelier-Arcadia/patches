@@ -4,13 +4,22 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/zsck/patches/internal/servers"
 	"github.com/zsck/patches/internal/sources/clair"
 
 	"github.com/zsck/patches/internal/limit"
 )
+
+func init() {
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stderr)
+	log.SetLevel(log.WarnLevel)
+}
 
 func main() {
 	bindPort := flag.Uint("port", 8080, "Port to bind the API server to")

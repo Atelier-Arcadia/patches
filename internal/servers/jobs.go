@@ -106,6 +106,7 @@ readUntilTimeout:
 			break readUntilTimeout
 
 		case err := <-job.errs:
+			fmt.Printf("Job manager encountered an error: %s", err.Error())
 			errs = append(errs, err)
 
 		case vuln := <-job.vulns:
