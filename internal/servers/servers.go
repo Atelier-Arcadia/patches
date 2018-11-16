@@ -87,8 +87,6 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 		requestID, vulns, errs = server.__newJob(pform)
 	}
 
-	fmt.Printf("I HATE MY LIFE ALSO HERE ARE SOME ERRORS: %v\n", errs)
-	fmt.Printf("But also I got %d vulns\n", len(vulns))
 	for _, err := range errs {
 		log.Error(err)
 	}
