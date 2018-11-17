@@ -35,19 +35,6 @@ func NewClairVulnServer(
 	}
 }
 
-func translatePlatform(name string) (platform.Platform, bool) {
-	supported := map[string]platform.Platform{
-		"debian 8": platform.Debian8,
-	}
-
-	pform, found := supported[name]
-	if !found {
-		return platform.Platform{}, false
-	}
-
-	return pform, true
-}
-
 func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	response := json.NewEncoder(res)
@@ -64,7 +51,7 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	pform, found := translatePlatform(platforms[0])
+	pform, found := platform.Translate(platforms[0])
 	if !found {
 		res.WriteHeader(http.StatusBadRequest)
 		errMsg := fmt.Sprintf("no such platform '%s'", platforms[0])

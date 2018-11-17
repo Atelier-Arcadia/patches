@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -17,9 +18,9 @@ import (
 	"github.com/zsck/patches/internal/limit"
 )
 
-const vulnSummariesWithoutPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?limit=100"
-const vulnSummariesWithPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?page=%s&limit=100"
-const vulnDescriptionEndptFmt string = "/v1/namespaces/%s/vulnerabilities/%s"
+const vulnSummariesWithoutPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?limit=999"
+const vulnSummariesWithPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?page=%s&limit=999"
+const vulnDescriptionEndptFmt string = "/v1/namespaces/%s/vulnerabilities/%s?fixedIn"
 
 // ClairAPIv1 contains the configuration required to communicate with V1 of the Clair API.
 type ClairAPIv1 struct {
@@ -204,7 +205,8 @@ func __describe(
 		return
 	}
 
-	ext := fmt.Sprintf(vulnDescriptionEndptFmt, pform, vulnName)
+	name := strings.Split(vulnName, " ")[0]
+	ext := fmt.Sprintf(vulnDescriptionEndptFmt, pform, name)
 	endpt, _ := url.Parse(ext)
 	toReq := base.ResolveReference(endpt)
 
@@ -416,6 +418,7 @@ func __stream(
 	for jobs > 0 || !finishedSummarizing {
 		select {
 		case sum := <-summaries:
+			<-stream.block()
 			go __fetchDescription(stream, pform, sum, vulns, jobsFinished, errs)
 			jobs++
 
