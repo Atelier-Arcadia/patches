@@ -56,9 +56,9 @@ var (
 		distro:  "alpine",
 		version: "v3.7",
 	}
-	Alpine3_7 Platform = Platform{
+	Alpine3_8 Platform = Platform{
 		distro:  "alpine",
-		version: "v3.7",
+		version: "v3.8",
 	}
 	Oracle5 Platform = Platform{
 		distro:  "oracle",

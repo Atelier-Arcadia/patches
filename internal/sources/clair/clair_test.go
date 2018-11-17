@@ -6,22 +6,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zsck/patches/pkg/done"
 	"github.com/zsck/patches/pkg/pack"
+	"github.com/zsck/patches/pkg/platform"
 	"github.com/zsck/patches/pkg/vulnerability"
+
+	"github.com/zsck/patches/internal/limit"
 )
 
 func TestSummarizeVulnerabilities(t *testing.T) {
 	testCases := []struct {
 		Description       string
 		RequestHandler    http.HandlerFunc
-		TargetPlatform    Platform
+		TargetPlatform    platform.Platform
 		ExpectedSummaries []summary
 		ExpectError       bool
 	}{
 		{
 			Description:    "The client should return the summaries written by the API",
 			RequestHandler: serveSummariesWithoutNextPage,
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectedSummaries: []summary{
 				{Name: "testsingle1"},
 				{Name: "testsingle2"},
@@ -31,7 +35,7 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 		{
 			Description:    "The client should make requests until it reads all pages",
 			RequestHandler: serveSummariesWithNextPage(),
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectedSummaries: []summary{
 				{Name: "testvuln1"},
 				{Name: "testvuln2"},
@@ -42,14 +46,14 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 		{
 			Description:       "The client should return an error when the API writes one",
 			RequestHandler:    serveError,
-			TargetPlatform:    Debian8,
+			TargetPlatform:    platform.Debian8,
 			ExpectedSummaries: []summary{},
 			ExpectError:       true,
 		},
 		{
 			Description:       "The client should return an error when the request is bad",
 			RequestHandler:    serveBadRequest,
-			TargetPlatform:    Debian8,
+			TargetPlatform:    platform.Debian8,
 			ExpectedSummaries: []summary{},
 			ExpectError:       true,
 		},
@@ -65,7 +69,15 @@ func TestSummarizeVulnerabilities(t *testing.T) {
 			config := ClairAPIv1{
 				BaseURL: server.URL,
 			}
-			vulnsChan, done, errs := summarizeVulnerabilities(config, testCase.TargetPlatform)
+			rateLimiter := limit.RateLimiter(func() <-chan done.Done {
+				d := make(chan done.Done, 1)
+				d <- done.Done{}
+				return d
+			})
+			vulnsChan, done, errs := summarizeVulnerabilities(
+				config,
+				rateLimiter,
+				testCase.TargetPlatform)
 
 			vulns := []summary{}
 		readall:
@@ -110,7 +122,7 @@ func TestDescribeVulnerability(t *testing.T) {
 		Description    string
 		RequestHandler http.HandlerFunc
 		VulnName       string
-		TargetPlatform Platform
+		TargetPlatform platform.Platform
 		ExpectedVuln   description
 		ExpectError    bool
 	}{
@@ -118,7 +130,7 @@ func TestDescribeVulnerability(t *testing.T) {
 			Description:    "The client should return valid data from the API",
 			RequestHandler: serveFixedVulnDescription,
 			VulnName:       "vuln1",
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectedVuln: description{
 				Name:     "testvulnfull",
 				Link:     "address.website",
@@ -140,7 +152,7 @@ func TestDescribeVulnerability(t *testing.T) {
 			Description:    "The client should return an empty vulnerability if the vuln is not fixed",
 			RequestHandler: serveUnfixedVulnDescription,
 			VulnName:       "vuln2",
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectedVuln:   description{},
 			ExpectError:    false,
 		},
@@ -148,7 +160,7 @@ func TestDescribeVulnerability(t *testing.T) {
 			Description:    "The client should return an error when the API does",
 			RequestHandler: serveError,
 			VulnName:       "doesntmatter",
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectedVuln:   description{},
 			ExpectError:    true,
 		},
@@ -156,7 +168,7 @@ func TestDescribeVulnerability(t *testing.T) {
 			Description:    "The client should return an error when the request is bad",
 			RequestHandler: serveBadRequest,
 			VulnName:       "doesntmatter",
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectedVuln:   description{},
 			ExpectError:    true,
 		},
@@ -172,8 +184,14 @@ func TestDescribeVulnerability(t *testing.T) {
 			config := ClairAPIv1{
 				BaseURL: server.URL,
 			}
+			rateLimiter := limit.RateLimiter(func() <-chan done.Done {
+				d := make(chan done.Done, 1)
+				d <- done.Done{}
+				return d
+			})
 			vulnChan, done, errs := describeVulnerability(
 				config,
+				rateLimiter,
 				testCase.VulnName,
 				testCase.TargetPlatform)
 
@@ -206,14 +224,14 @@ func TestSourceImplementation(t *testing.T) {
 	testCases := []struct {
 		Description    string
 		RequestHandler http.HandlerFunc
-		TargetPlatform Platform
+		TargetPlatform platform.Platform
 		ExpectError    bool
 		ExpectedVulns  []vulnerability.Vulnerability
 	}{
 		{
 			Description:    "Should serve all vulnerabilities from the Clair API",
 			RequestHandler: clairRouter(serveSummariesWithNextPage(), serveFixedVulnDescription),
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectError:    false,
 			ExpectedVulns: []vulnerability.Vulnerability{
 				{
@@ -272,21 +290,21 @@ func TestSourceImplementation(t *testing.T) {
 		{
 			Description:    "Should not serve unpatched vulnerabilities",
 			RequestHandler: clairRouter(serveSummariesWithoutNextPage, serveUnfixedVulnDescription),
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectError:    false,
 			ExpectedVulns:  []vulnerability.Vulnerability{},
 		},
 		{
 			Description:    "Should return errors from the API (case 1)",
 			RequestHandler: clairRouter(serveError, serveUnfixedVulnDescription),
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectError:    true,
 			ExpectedVulns:  []vulnerability.Vulnerability{},
 		},
 		{
 			Description:    "Should return errors from the API (case 2)",
 			RequestHandler: clairRouter(serveSummariesWithoutNextPage, serveError),
-			TargetPlatform: Debian8,
+			TargetPlatform: platform.Debian8,
 			ExpectError:    true,
 			ExpectedVulns:  []vulnerability.Vulnerability{},
 		},
@@ -302,10 +320,15 @@ func TestSourceImplementation(t *testing.T) {
 			clair := ClairAPIv1{
 				BaseURL: server.URL,
 			}
+			rateLimiter := limit.RateLimiter(func() <-chan done.Done {
+				d := make(chan done.Done, 1)
+				d <- done.Done{}
+				return d
+			})
 			vulnChan, done, errs := NewStream(
 				clair,
-				testCase.TargetPlatform,
-			).Vulnerabilities()
+				rateLimiter,
+			).Vulnerabilities(testCase.TargetPlatform)
 
 			vulns := []vulnerability.Vulnerability{}
 		readall:
