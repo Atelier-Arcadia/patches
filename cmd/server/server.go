@@ -9,10 +9,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/zsck/patches/internal/servers"
-	"github.com/zsck/patches/internal/sources/clair"
+	"github.com/arcrose/patches/internal/servers"
+	"github.com/arcrose/patches/internal/sources/clair"
 
-	"github.com/zsck/patches/internal/limit"
+	"github.com/arcrose/patches/internal/limit"
 )
 
 func init() {

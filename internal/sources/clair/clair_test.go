@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zsck/patches/pkg/pack"
-	"github.com/zsck/patches/pkg/vulnerability"
+	"github.com/arcrose/patches/pkg/pack"
+	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
 func TestSummarizeVulnerabilities(t *testing.T) {

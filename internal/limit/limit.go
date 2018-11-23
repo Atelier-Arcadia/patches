@@ -3,7 +3,7 @@ package limit
 import (
 	"time"
 
-	"github.com/zsck/patches/pkg/done"
+	"github.com/arcrose/patches/pkg/done"
 )
 
 // RateLimiter is a function that, similar to time.After, returns a channel from

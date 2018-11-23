@@ -7,8 +7,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/zsck/patches/pkg/platform"
-	"github.com/zsck/patches/pkg/vulnerability"
+	"github.com/arcrose/patches/pkg/platform"
+	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
 // ClairVulnServer is an HTTP server that serves requests for vulnerabilities affecting

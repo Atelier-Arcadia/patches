@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/zsck/patches/pkg/done"
-	"github.com/zsck/patches/pkg/pack"
-	"github.com/zsck/patches/pkg/platform"
-	"github.com/zsck/patches/pkg/vulnerability"
+	"github.com/arcrose/patches/pkg/done"
+	"github.com/arcrose/patches/pkg/pack"
+	"github.com/arcrose/patches/pkg/platform"
+	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
 type response struct {

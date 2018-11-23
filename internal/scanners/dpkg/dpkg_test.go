@@ -4,7 +4,7 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/zsck/patches/pkg/pack"
+	"github.com/arcrose/patches/pkg/pack"
 )
 
 func TestScannerImplementation(t *testing.T) {

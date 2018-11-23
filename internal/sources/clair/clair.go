@@ -9,12 +9,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/zsck/patches/pkg/done"
-	"github.com/zsck/patches/pkg/pack"
-	"github.com/zsck/patches/pkg/platform"
-	"github.com/zsck/patches/pkg/vulnerability"
+	"github.com/arcrose/patches/pkg/done"
+	"github.com/arcrose/patches/pkg/pack"
+	"github.com/arcrose/patches/pkg/platform"
+	"github.com/arcrose/patches/pkg/vulnerability"
 
-	"github.com/zsck/patches/internal/limit"
+	"github.com/arcrose/patches/internal/limit"
 )
 
 const vulnSummariesWithoutPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?limit=100"

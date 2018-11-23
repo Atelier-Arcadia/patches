@@ -3,8 +3,8 @@ package servers
 import (
 	"testing"
 
-	"github.com/zsck/patches/pkg/done"
-	"github.com/zsck/patches/pkg/vulnerability"
+	"github.com/arcrose/patches/pkg/done"
+	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
 func TestRegister(t *testing.T) {

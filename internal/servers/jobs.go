@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zsck/patches/pkg/done"
-	"github.com/zsck/patches/pkg/vulnerability"
+	"github.com/arcrose/patches/pkg/done"
+	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
 var defaultReadTimeout time.Duration = 30 * time.Millisecond
