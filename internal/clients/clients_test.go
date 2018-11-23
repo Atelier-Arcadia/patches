@@ -17,7 +17,7 @@ type response struct {
 	Vulnerabilities []vulnerability.Vulnerability `json:"vulns"`
 }
 
-func TestClient(t *testing.T) {
+func TestClairClient(t *testing.T) {
 	errorMsg := "testerror"
 
 	testCases := []struct {
