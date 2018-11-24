@@ -78,7 +78,7 @@ func TestRetrieve(t *testing.T) {
 			MaxJobs: 10,
 		})
 
-		finished := make(chan done.Done)
+		finished := make(chan done.Done, 1)
 
 		jobID, err := jobManager.Register(NewFetchVulnsJob(
 			make(chan vulnerability.Vulnerability),
@@ -88,17 +88,24 @@ func TestRetrieve(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		finished <- done.Done{}
+
 		id := "testid"
 		if testCase.UseReturnedID {
 			id = jobID
 		}
 
-		_, errs, _ := jobManager.Retrieve(id)
+		_, errs, fin := jobManager.Retrieve(id)
+
 		found := len(errs) == 0
 		if !found && testCase.ExpectToFindJob {
 			t.Errorf("Expected to find job '%s' but did not", id)
 		} else if found && !testCase.ExpectToFindJob {
 			t.Errorf("Did not expect to find job '%s' but did", id)
+		}
+
+		if testCase.ExpectToFindJob && !bool(fin) {
+			t.Errorf("Should be finished retrieving vulns")
 		}
 	}
 }
