@@ -1,63 +1,62 @@
 package clients
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/arcrose/patches/pkg/pack"
+	"github.com/arcrose/patches/pkg/platform"
 	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
 type response struct {
 	Error           *string                       `json:"error"`
 	RequestID       string                        `json:"requestID"`
+	Finished        bool                          `json:"finished"`
 	Vulnerabilities []vulnerability.Vulnerability `json:"vulns"`
 }
 
-func TestClairClient(t *testing.T) {
-	errorMsg := "testerror"
-
+func TestClairClientFetch(t *testing.T) {
 	testCases := []struct {
-		Description      string
-		PlatformName     string
-		RequestHandler   http.HandlerFunc
-		ExpectedResponse response
+		Description    string
+		PlatformName   string
+		RequestHandler http.HandlerFunc
+		ExpectedVulns  []vulnerability.Vulnerability
+		ExpectError    bool
 	}{
 		{
 			Description:    "Should retrieve all vulnerabilities returned by the server",
 			PlatformName:   "debian-8",
 			RequestHandler: serveVulns(2),
-			ExpectedResponse: response{
-				Error:     nil,
-				RequestID: "testid",
-				Vulnerabilities: []vulnerability.Vulnerability{
-					{
-						Name:                 "testvuln",
-						AffectedPackageName:  "testpackage",
-						AffectedPlatformName: "debian-8",
-						DetailsHref:          "link",
-						SeverityRating:       vulnerability.SeverityLow,
-						FixedInPackages: []pack.Package{
-							{
-								Name:    "testpackage",
-								Version: "1.2.3",
-							},
+			ExpectError:    false,
+			ExpectedVulns: []vulnerability.Vulnerability{
+				{
+					Name:                 "testvuln",
+					AffectedPackageName:  "testpackage",
+					AffectedPlatformName: "debian-8",
+					DetailsHref:          "link",
+					SeverityRating:       vulnerability.SeverityLow,
+					FixedInPackages: []pack.Package{
+						{
+							Name:    "testpackage",
+							Version: "1.2.3",
 						},
 					},
-					{
-						Name:                 "testvuln",
-						AffectedPackageName:  "testpackage",
-						AffectedPlatformName: "debian-8",
-						DetailsHref:          "link",
-						SeverityRating:       vulnerability.SeverityLow,
-						FixedInPackages: []pack.Package{
-							{
-								Name:    "testpackage",
-								Version: "1.2.3",
-							},
+				},
+				{
+					Name:                 "testvuln",
+					AffectedPackageName:  "testpackage",
+					AffectedPlatformName: "debian-8",
+					DetailsHref:          "link",
+					SeverityRating:       vulnerability.SeverityLow,
+					FixedInPackages: []pack.Package{
+						{
+							Name:    "testpackage",
+							Version: "1.2.3",
 						},
 					},
 				},
@@ -67,11 +66,8 @@ func TestClairClient(t *testing.T) {
 			Description:    "Should return an error if the server returns one",
 			PlatformName:   "debian-8",
 			RequestHandler: serveError,
-			ExpectedResponse: response{
-				Error:           &errorMsg,
-				RequestID:       "",
-				Vulnerabilities: []vulnerability.Vulnerability{},
-			},
+			ExpectError:    true,
+			ExpectedVulns:  []vulnerability.Vulnerability{},
 		},
 	}
 
@@ -82,39 +78,39 @@ func TestClairClient(t *testing.T) {
 			server := httptest.NewServer(testCase.RequestHandler)
 			defer server.Close()
 
-			url := fmt.Sprintf("%s/vulns?platform=%s", server.URL, testCase.PlatformName)
-			resp, err := http.Get(url)
-			if err != nil {
-				t.Fatal(err)
+			serverURL, _ := url.Parse(server.URL)
+			serverPort, _ := strconv.ParseUint(serverURL.Port(), 10, 16)
+
+			client := NewClairClient(serverURL.Hostname(), uint16(serverPort))
+
+			vulns, fin, errs := client.Vulnerabilities(platform.Debian8)
+			var err error
+			allVulns := []vulnerability.Vulnerability{}
+
+		readall:
+			for {
+				select {
+				case v := <-vulns:
+					allVulns = append(allVulns, v)
+
+				case <-fin:
+					break readall
+
+				case e := <-errs:
+					err = e
+				}
 			}
 
-			respData := response{}
-			decoder := json.NewDecoder(resp.Body)
-			decodeErr := decoder.Decode(&respData)
-			defer resp.Body.Close()
-			if decodeErr != nil {
-				t.Fatal(decodeErr)
+			gotErr := err != nil
+			if gotErr && !testCase.ExpectError {
+				t.Errorf("Did not expect an error but got '%s'", err.Error())
+			} else if !gotErr && testCase.ExpectError {
+				t.Errorf("Expected an error but did not get one")
 			}
 
-			if respData.Error != nil &&
-				testCase.ExpectedResponse.Error != nil &&
-				*respData.Error != *testCase.ExpectedResponse.Error {
-				t.Errorf(
-					"Expected to get error '%s' but got '%s'",
-					*testCase.ExpectedResponse.Error,
-					*respData.Error)
-			}
-
-			if respData.RequestID != testCase.ExpectedResponse.RequestID {
-				t.Errorf(
-					"Expected to get request id '%s' but got '%s'",
-					testCase.ExpectedResponse.RequestID,
-					respData.RequestID)
-			}
-
-			for _, expected := range testCase.ExpectedResponse.Vulnerabilities {
+			for _, expected := range testCase.ExpectedVulns {
 				wasFound := false
-				for _, found := range respData.Vulnerabilities {
+				for _, found := range allVulns {
 					if found.Equals(expected) {
 						wasFound = true
 						break
