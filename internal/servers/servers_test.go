@@ -144,7 +144,7 @@ func TestClairVulnServer(t *testing.T) {
 				t.Fatal(decodeErr)
 			}
 
-			t.Logf("Got response: %v", resp)
+			//t.Logf("Got response: %v", resp)
 			gotErr := resp.Error != nil
 			if gotErr && !testCase.ExpectError {
 				t.Fatalf("Did not expect an error but got '%s'", *resp.Error)
