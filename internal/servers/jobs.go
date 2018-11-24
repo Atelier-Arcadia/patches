@@ -18,6 +18,8 @@ const (
 	numJobIDBytes uint = 16
 )
 
+type complete bool
+
 // VulnJobManager manages "jobs" containing channels from which vulnerabilities
 // are read.
 type VulnJobManager struct {
@@ -82,13 +84,18 @@ func (jobs *VulnJobManager) Register(job FetchVulnsJob) (string, error) {
 }
 
 // Retrieve finds a job being handled by the manager and reads results from it.
-func (jobs *VulnJobManager) Retrieve(jobID string) ([]vulnerability.Vulnerability, []error) {
+func (jobs *VulnJobManager) Retrieve(jobID string) (
+	[]vulnerability.Vulnerability,
+	[]error,
+	complete,
+) {
 	job, found := jobs.managing[jobID]
 	vulns := []vulnerability.Vulnerability{}
 	errs := []error{}
+	fin := complete(false)
 
 	if !found {
-		return []vulnerability.Vulnerability{}, []error{fmt.Errorf("no such job")}
+		return []vulnerability.Vulnerability{}, []error{fmt.Errorf("no such job")}, fin
 	}
 
 	stopAt := time.Now().Add(jobs.maxReadTime)
@@ -103,6 +110,7 @@ readUntilTimeout:
 		case <-job.finished:
 			delete(jobs.managing, jobID)
 			jobs.numManaged--
+			fin = complete(true)
 			break readUntilTimeout
 
 		case err := <-job.errs:
@@ -114,7 +122,7 @@ readUntilTimeout:
 		}
 	}
 
-	return vulns, errs
+	return vulns, errs, fin
 }
 
 func (opts *VulnJobManagerOptions) applyDefaults() {

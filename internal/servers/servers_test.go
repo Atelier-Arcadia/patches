@@ -16,6 +16,7 @@ import (
 type response struct {
 	Error           *string                       `json:"error"`
 	RequestID       string                        `json:"requestID"`
+	Finished        bool                          `json:"finished"`
 	Vulnerabilities []vulnerability.Vulnerability `json:"vulns"`
 }
 
@@ -38,6 +39,7 @@ func TestClairVulnServer(t *testing.T) {
 			ExpectedResponse: response{
 				Error:     nil,
 				RequestID: "testid",
+				Finished:  true,
 				Vulnerabilities: []vulnerability.Vulnerability{
 					{
 						Name:                 "testvuln1",
@@ -75,6 +77,7 @@ func TestClairVulnServer(t *testing.T) {
 			ExpectedResponse: response{
 				Error:     nil,
 				RequestID: "testid",
+				Finished:  true,
 				Vulnerabilities: []vulnerability.Vulnerability{
 					{
 						Name:                 "testvuln1",
@@ -112,6 +115,7 @@ func TestClairVulnServer(t *testing.T) {
 			ExpectedResponse: response{
 				Error:           &testErr,
 				RequestID:       "testid",
+				Finished:        false,
 				Vulnerabilities: []vulnerability.Vulnerability{},
 			},
 			ExpectError: true,
@@ -140,11 +144,19 @@ func TestClairVulnServer(t *testing.T) {
 				t.Fatal(decodeErr)
 			}
 
+			t.Logf("Got response: %v", resp)
 			gotErr := resp.Error != nil
 			if gotErr && !testCase.ExpectError {
 				t.Fatalf("Did not expect an error but got '%s'", *resp.Error)
 			} else if !gotErr && testCase.ExpectError {
 				t.Fatalf("Expected to get an error, but did not get one")
+			}
+
+			if resp.Finished != testCase.ExpectedResponse.Finished {
+				t.Errorf(
+					"Expected finished to be %v but it's %v",
+					testCase.ExpectedResponse.Finished,
+					resp.Finished)
 			}
 
 			for _, vuln := range testCase.ExpectedResponse.Vulnerabilities {

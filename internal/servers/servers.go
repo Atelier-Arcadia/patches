@@ -21,6 +21,7 @@ type ClairVulnServer struct {
 type vulnsResponse struct {
 	Error           *string                       `json:"error"`
 	RequestID       string                        `json:"requestID"`
+	Finished        complete                      `json:"finished"`
 	Vulnerabilities []vulnerability.Vulnerability `json:"vulns"`
 }
 
@@ -79,10 +80,11 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 	var requestID string
 	var vulns []vulnerability.Vulnerability
 	var errs []error
+	var fin complete = complete(false)
 
 	if found && len(requestIDs) > 0 {
 		requestID = requestIDs[0]
-		vulns, errs = server.__runJob(requestID)
+		vulns, errs, fin = server.__runJob(requestID)
 	} else {
 		requestID, vulns, errs = server.__newJob(pform)
 	}
@@ -104,12 +106,17 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 	response.Encode(vulnsResponse{
 		Vulnerabilities: vulns,
 		RequestID:       requestID,
+		Finished:        fin,
 	})
 }
 
-func (server ClairVulnServer) __runJob(id string) ([]vulnerability.Vulnerability, []error) {
-	vulns, errs := server.jobs.Retrieve(id)
-	return vulns, errs
+func (server ClairVulnServer) __runJob(id string) (
+	[]vulnerability.Vulnerability,
+	[]error,
+	complete,
+) {
+	vulns, errs, fin := server.jobs.Retrieve(id)
+	return vulns, errs, fin
 }
 
 func (server ClairVulnServer) __newJob(pform platform.Platform) (
@@ -124,6 +131,6 @@ func (server ClairVulnServer) __newJob(pform platform.Platform) (
 		return "", []vulnerability.Vulnerability{}, []error{err}
 	}
 
-	foundVulns, encounteredErrs := server.jobs.Retrieve(jobID)
+	foundVulns, encounteredErrs, _ := server.jobs.Retrieve(jobID)
 	return jobID, foundVulns, encounteredErrs
 }
