@@ -118,6 +118,5 @@ func __retrieve(
 		<-client.block()
 	}
 
-	log.Debugf("Finished")
 	finished <- done.Done{}
 }
