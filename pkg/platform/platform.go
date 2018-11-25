@@ -38,6 +38,7 @@ var (
 	}
 	Alpine3_3 Platform = Platform{
 		distro:  "alpine",
+<<<<<<< HEAD
 		version: "3.3",
 	}
 	Alpine3_4 Platform = Platform{
@@ -59,6 +60,29 @@ var (
 	Alpine3_8 Platform = Platform{
 		distro:  "alpine",
 		version: "3.8",
+=======
+		version: "v3.3",
+	}
+	Alpine3_4 Platform = Platform{
+		distro:  "alpine",
+		version: "v3.4",
+	}
+	Alpine3_5 Platform = Platform{
+		distro:  "alpine",
+		version: "v3.5",
+	}
+	Alpine3_6 Platform = Platform{
+		distro:  "alpine",
+		version: "v3.6",
+	}
+	Alpine3_7 Platform = Platform{
+		distro:  "alpine",
+		version: "v3.7",
+	}
+	Alpine3_8 Platform = Platform{
+		distro:  "alpine",
+		version: "v3.8",
+>>>>>>> 6b29618510b19dbc236d2aca7cbb85dc754c7e43
 	}
 	Oracle5 Platform = Platform{
 		distro:  "oracle",
@@ -130,13 +154,17 @@ var (
 // The naming scheme used is: distro-M(.m.p(-.*)?)
 func Translate(name string) (Platform, bool) {
 	supported := map[string]Platform{
+<<<<<<< HEAD
 		"centos-5":        CentOS5,
+=======
+>>>>>>> 6b29618510b19dbc236d2aca7cbb85dc754c7e43
 		"centos-6":        CentOS6,
 		"centos-7":        CentOS7,
 		"debian-8":        Debian8,
 		"debian-9":        Debian9,
 		"debian-10":       Debian10,
 		"debian-unstable": DebianUnstable,
+<<<<<<< HEAD
 		"alpine-3.3":      Alpine3_3,
 		"alpine-3.4":      Alpine3_4,
 		"alpine-3.5":      Alpine3_5,
@@ -159,6 +187,8 @@ func Translate(name string) (Platform, bool) {
 		"ubuntu-17.04":    Ubuntu17_04,
 		"ubuntu-17.10":    Ubuntu17_10,
 		"ubuntu-18.04":    Ubuntu18_04,
+=======
+>>>>>>> 6b29618510b19dbc236d2aca7cbb85dc754c7e43
 	}
 
 	pform, found := supported[name]
@@ -170,5 +200,10 @@ func Translate(name string) (Platform, bool) {
 }
 
 func (p Platform) String() string {
+<<<<<<< HEAD
 	return p.distro + "-" + p.version
+=======
+	// TODO - this String definition will only work for Clair
+	return p.distro + ":" + p.version
+>>>>>>> 6b29618510b19dbc236d2aca7cbb85dc754c7e43
 }

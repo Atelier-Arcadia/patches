@@ -7,7 +7,9 @@ import (
 
 func TestConstantRateLimiter(t *testing.T) {
 	pause := 12 * time.Millisecond
-	epsilon := 500 * time.Microsecond
+	epsilon := float64(4 * time.Millisecond)
+	lowerBound := float64(pause) - epsilon
+	upperBound := lowerBound + 2*epsilon
 
 	t.Logf("Running TestConstantRateLimiter: Should unblock in a constant interval")
 
@@ -22,11 +24,10 @@ func TestConstantRateLimiter(t *testing.T) {
 		totalTimePaused += after.Sub(before)
 	}
 
-	avgTimePaused := totalTimePaused / 50
-	withinErrorRange := avgTimePaused < (pause+epsilon) &&
-		avgTimePaused > (pause-epsilon)
+	avgTimePaused := float64(totalTimePaused) / 50.0
+	withinErrorRange := avgTimePaused <= upperBound && avgTimePaused >= lowerBound
 
 	if !withinErrorRange {
-		t.Errorf("Did not block for an average of 12 milliseconds across 50 blocks")
+		t.Errorf("Blocked for an average of %f milliseconds when it should have been 12", avgTimePaused)
 	}
 }

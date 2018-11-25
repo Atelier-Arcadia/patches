@@ -44,7 +44,7 @@ func TestClairVulnServer(t *testing.T) {
 					{
 						Name:                 "testvuln1",
 						AffectedPackageName:  "testpackage1",
-						AffectedPlatformName: "debian 8",
+						AffectedPlatformName: "debian-8",
 						DetailsHref:          "website.com",
 						SeverityRating:       vulnerability.SeverityLow,
 						FixedInPackages: []pack.Package{
@@ -57,7 +57,7 @@ func TestClairVulnServer(t *testing.T) {
 					{
 						Name:                 "testvuln2",
 						AffectedPackageName:  "testpackage2",
-						AffectedPlatformName: "debian 8",
+						AffectedPlatformName: "debian-8",
 						DetailsHref:          "website.com",
 						SeverityRating:       vulnerability.SeverityLow,
 						FixedInPackages: []pack.Package{
@@ -82,7 +82,7 @@ func TestClairVulnServer(t *testing.T) {
 					{
 						Name:                 "testvuln1",
 						AffectedPackageName:  "testpackage1",
-						AffectedPlatformName: "debian 8",
+						AffectedPlatformName: "debian-8",
 						DetailsHref:          "website.com",
 						SeverityRating:       vulnerability.SeverityLow,
 						FixedInPackages: []pack.Package{
@@ -95,7 +95,7 @@ func TestClairVulnServer(t *testing.T) {
 					{
 						Name:                 "testvuln1",
 						AffectedPackageName:  "testpackage1",
-						AffectedPlatformName: "debian 8",
+						AffectedPlatformName: "debian-8",
 						DetailsHref:          "website.com",
 						SeverityRating:       vulnerability.SeverityLow,
 						FixedInPackages: []pack.Package{
@@ -130,7 +130,7 @@ func TestClairVulnServer(t *testing.T) {
 				NewClairVulnServer(testCase.VulnSource, VulnJobManagerOptions{}))
 			defer server.Close()
 
-			url := server.URL + "/vulns?platform=debian%208"
+			url := server.URL + "/vulns?platform=debian-8"
 			res, err := http.Get(url)
 			if err != nil {
 				t.Fatal(err)
@@ -214,7 +214,7 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) (
 			vulns <- vulnerability.Vulnerability{
 				Name:                 vulnName,
 				AffectedPackageName:  pkgName,
-				AffectedPlatformName: "debian 8",
+				AffectedPlatformName: "debian-8",
 				DetailsHref:          "website.com",
 				SeverityRating:       vulnerability.SeverityLow,
 				FixedInPackages: []pack.Package{

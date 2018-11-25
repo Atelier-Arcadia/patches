@@ -18,7 +18,7 @@ import (
 func init() {
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetOutput(os.Stderr)
-	log.SetLevel(log.WarnLevel)
+	log.SetLevel(log.DebugLevel)
 }
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 	clairConfig := clair.ClairAPIv1{
 		BaseURL: *baseAddr,
 	}
-	rateLimit := limit.ConstantRateLimiter(15 * time.Millisecond)
+	rateLimit := limit.ConstantRateLimiter(100 * time.Millisecond)
 	options := servers.VulnJobManagerOptions{
 		MaxJobs: *maxJobs,
 	}

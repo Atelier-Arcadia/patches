@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -17,9 +18,9 @@ import (
 	"github.com/arcrose/patches/internal/limit"
 )
 
-const vulnSummariesWithoutPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?limit=100"
-const vulnSummariesWithPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?page=%s&limit=100"
-const vulnDescriptionEndptFmt string = "/v1/namespaces/%s/vulnerabilities/%s"
+const vulnSummariesWithoutPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?limit=999"
+const vulnSummariesWithPageEndptFmt string = "/v1/namespaces/%s/vulnerabilities?page=%s&limit=999"
+const vulnDescriptionEndptFmt string = "/v1/namespaces/%s/vulnerabilities/%s?fixedIn"
 
 // ClairAPIv1 contains the configuration required to communicate with V1 of the Clair API.
 type ClairAPIv1 struct {
@@ -167,13 +168,14 @@ func translateName(pform platform.Platform) string {
 // vulnerabilities affecting a platform as described by the Clair v1 API.
 func summarizeVulnerabilities(
 	config ClairAPIv1,
+	block limit.RateLimiter,
 	pform platform.Platform,
 ) (<-chan summary, <-chan done.Done, <-chan error) {
 	summaries := make(chan summary)
 	finished := make(chan done.Done)
 	errs := make(chan error)
 
-	go __collect(config, pform, summaries, finished, errs)
+	go __collect(config, block, pform, summaries, finished, errs)
 	return summaries, finished, errs
 }
 
@@ -181,6 +183,7 @@ func summarizeVulnerabilities(
 // about a vulnerability affecting a platform from the Clair v1 API.
 func describeVulnerability(
 	config ClairAPIv1,
+	block limit.RateLimiter,
 	vulnName string,
 	pform platform.Platform,
 ) (<-chan description, <-chan done.Done, <-chan error) {
@@ -188,7 +191,7 @@ func describeVulnerability(
 	finished := make(chan done.Done)
 	errs := make(chan error)
 
-	go __describe(config, vulnName, pform, descriptions, finished, errs)
+	go __describe(config, block, vulnName, pform, descriptions, finished, errs)
 	return descriptions, finished, errs
 }
 
@@ -196,6 +199,7 @@ func describeVulnerability(
 // pages containing names of vulnerabilities for the platform requested.
 func __collect(
 	cfg ClairAPIv1,
+	block limit.RateLimiter,
 	pform platform.Platform,
 	summaries chan<- summary,
 	finished chan<- done.Done,
@@ -204,7 +208,6 @@ func __collect(
 	base, err := url.Parse(cfg.BaseURL)
 	if err != nil {
 		log.Errorf("Error encountered in __collect: '%s'", err.Error())
-		fmt.Println("Called log.Log in __collect")
 		errs <- err
 		finished <- done.Done{}
 		return
@@ -213,6 +216,7 @@ func __collect(
 	ext := fmt.Sprintf(vulnSummariesWithoutPageEndptFmt, pform)
 	nextPage := __getSummaries(base, ext, summaries, errs)
 	for nextPage != "" {
+		<-block()
 		ext = fmt.Sprintf(vulnSummariesWithPageEndptFmt, pform, nextPage)
 		nextPage = __getSummaries(base, ext, summaries, errs)
 	}
@@ -223,6 +227,7 @@ func __collect(
 // about one specific vulnerability.
 func __describe(
 	cfg ClairAPIv1,
+	block limit.RateLimiter,
 	vulnName string,
 	pform platform.Platform,
 	descriptions chan<- description,
@@ -232,13 +237,17 @@ func __describe(
 	base, err := url.Parse(cfg.BaseURL)
 	if err != nil {
 		log.Errorf("Encountered an error in __describe: '%s'", err.Error())
-		fmt.Println("Called log.Log in __describe")
 		errs <- err
 		finished <- done.Done{}
 		return
 	}
 
+<<<<<<< HEAD
 	ext := fmt.Sprintf(vulnDescriptionEndptFmt, translateName(pform), vulnName)
+=======
+	name := strings.Split(vulnName, " ")[0]
+	ext := fmt.Sprintf(vulnDescriptionEndptFmt, pform, name)
+>>>>>>> 6b29618510b19dbc236d2aca7cbb85dc754c7e43
 	endpt, _ := url.Parse(ext)
 	toReq := base.ResolveReference(endpt)
 
@@ -268,8 +277,10 @@ func __describe(
 		return
 	}
 	if description, convertErr := __toDescriptionResponse(respJSON); convertErr == nil {
+		log.Debugf("Got vulnerability details for '%s'", vulnName)
 		descriptions <- description.Vulnerability
 	} else {
+		//log.Errorf("Failed to convert response to description: %s", convertErr.Error())
 	}
 	finished <- done.Done{}
 }
@@ -292,6 +303,7 @@ func __getSummaries(
 		return ""
 	}
 	defer response.Body.Close()
+	log.Debug("Got some vuln summaries")
 
 	respJSON := map[string]interface{}{}
 	decoder := json.NewDecoder(response.Body)
@@ -365,29 +377,29 @@ func __toSummaryResponse(jsonData map[string]interface{}) (summaryResponse, erro
 
 func __toDescriptionResponse(jsonData map[string]interface{}) (descriptionResponse, error) {
 	desc := descriptionResponse{}
-	theError := errors.New("Not a vulnerability description")
+	theErrorFmt := "Not a vulnerability description. Missing or invalid field %s"
 
 	vulnBlob, ok := jsonData["Vulnerability"].(map[string]interface{})
 	if !ok {
-		return descriptionResponse{}, theError
+		return descriptionResponse{}, fmt.Errorf(theErrorFmt, "Vulnerability")
 	}
 
 	if name, ok := vulnBlob["Name"].(string); ok {
 		desc.Vulnerability.Name = name
 	} else {
-		return descriptionResponse{}, theError
+		return descriptionResponse{}, fmt.Errorf(theErrorFmt, "Name")
 	}
 
 	if link, ok := vulnBlob["Link"].(string); ok {
 		desc.Vulnerability.Link = link
 	} else {
-		return descriptionResponse{}, theError
+		return descriptionResponse{}, fmt.Errorf(theErrorFmt, "Link")
 	}
 
 	if severity, ok := vulnBlob["Severity"].(string); ok {
 		desc.Vulnerability.Severity = severity
 	} else {
-		return descriptionResponse{}, theError
+		return descriptionResponse{}, fmt.Errorf(theErrorFmt, "Severity")
 	}
 
 	if fixBlobs, ok := vulnBlob["FixedIn"].([]interface{}); ok {
@@ -398,19 +410,19 @@ func __toDescriptionResponse(jsonData map[string]interface{}) (descriptionRespon
 			if name, ok := fixJSON["Name"].(string); ok {
 				newFix.Name = name
 			} else {
-				return descriptionResponse{}, theError
+				return descriptionResponse{}, fmt.Errorf(theErrorFmt, "FixedIn[i].Name")
 			}
 
 			if version, ok := fixJSON["Version"].(string); ok {
 				newFix.Version = version
 			} else {
-				return descriptionResponse{}, theError
+				return descriptionResponse{}, fmt.Errorf(theErrorFmt, "FixedIn[i].Version")
 			}
 
 			desc.Vulnerability.FixedIn = append(desc.Vulnerability.FixedIn, newFix)
 		}
 	} else {
-		return descriptionResponse{}, theError
+		return descriptionResponse{}, fmt.Errorf(theErrorFmt, "FixedIn")
 	}
 
 	return desc, nil
@@ -436,7 +448,10 @@ func __stream(
 	finished chan<- done.Done,
 	errs chan<- error,
 ) {
-	summaries, sumFinished, sumErrs := summarizeVulnerabilities(stream.config, pform)
+	summaries, sumFinished, sumErrs := summarizeVulnerabilities(
+		stream.config,
+		stream.block,
+		pform)
 	finishedSummarizing := false
 	jobsFinished := make(chan done.Done)
 	jobs := 0
@@ -444,6 +459,7 @@ func __stream(
 	for jobs > 0 || !finishedSummarizing {
 		select {
 		case sum := <-summaries:
+			<-stream.block()
 			go __fetchDescription(stream, pform, sum, vulns, jobsFinished, errs)
 			jobs++
 
@@ -471,6 +487,7 @@ func __fetchDescription(
 ) {
 	descriptions, descFinished, descErrs := describeVulnerability(
 		stream.config,
+		stream.block,
 		sum.Name,
 		pform)
 
