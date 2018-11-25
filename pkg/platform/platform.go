@@ -38,27 +38,27 @@ var (
 	}
 	Alpine3_3 Platform = Platform{
 		distro:  "alpine",
-		version: "v3.3",
+		version: "3.3",
 	}
 	Alpine3_4 Platform = Platform{
 		distro:  "alpine",
-		version: "v3.4",
+		version: "3.4",
 	}
 	Alpine3_5 Platform = Platform{
 		distro:  "alpine",
-		version: "v3.5",
+		version: "3.5",
 	}
 	Alpine3_6 Platform = Platform{
 		distro:  "alpine",
-		version: "v3.6",
+		version: "3.6",
 	}
 	Alpine3_7 Platform = Platform{
 		distro:  "alpine",
-		version: "v3.7",
+		version: "3.7",
 	}
 	Alpine3_8 Platform = Platform{
 		distro:  "alpine",
-		version: "v3.8",
+		version: "3.8",
 	}
 	Oracle5 Platform = Platform{
 		distro:  "oracle",

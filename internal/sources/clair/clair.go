@@ -126,6 +126,43 @@ func toPackage(f fix) pack.Package {
 	}
 }
 
+func translateName(pform platform.Platform) string {
+	translations := map[platform.Platform]string{
+		CentOS5:        "centos:5",
+		CentOS6:        "centos:6",
+		CentOS7:        "centos:7",
+		Debian8:        "debian:8",
+		Debian9:        "debian:9",
+		Debian10:       "debian:10",
+		DebianUnstable: "debian:unstable",
+		Alpine3_3:      "alpine:v3.3",
+		Alpine3_4:      "alpine:v3.4",
+		Alpine3_5:      "alpine:v3.5",
+		Alpine3_6:      "alpine:v3.6",
+		Alpine3_7:      "alpine:v3.7",
+		Alpine3_8:      "alpine:v3.8",
+		Oracle5:        "oracle:5",
+		Oracle6:        "oracle:6",
+		Oracle7:        "oracle:7",
+		Ubuntu12_04:    "ubuntu:12.04",
+		Ubuntu12_10:    "ubuntu:12.10",
+		Ubuntu13_04:    "ubuntu:13.04",
+		Ubuntu13_10:    "ubuntu:13.10",
+		Ubuntu14_04:    "ubuntu:14.04",
+		Ubuntu14_10:    "ubuntu:14.10",
+		Ubuntu15_04:    "ubuntu:15.04",
+		Ubuntu15_10:    "ubuntu:15.10",
+		Ubuntu16_04:    "ubuntu:16.04",
+		Ubuntu16_10:    "ubuntu:16.10",
+		Ubuntu17_04:    "ubuntu:17.04",
+		Ubuntu17_10:    "ubuntu:17.10",
+		Ubuntu18_04:    "ubuntu:18.04",
+	}
+
+	name, _ := translations[pform]
+	return name
+}
+
 // summarizeVulnerabilities runs a goroutine that streams out summaries of
 // vulnerabilities affecting a platform as described by the Clair v1 API.
 func summarizeVulnerabilities(
@@ -201,7 +238,7 @@ func __describe(
 		return
 	}
 
-	ext := fmt.Sprintf(vulnDescriptionEndptFmt, pform, vulnName)
+	ext := fmt.Sprintf(vulnDescriptionEndptFmt, translateName(pform), vulnName)
 	endpt, _ := url.Parse(ext)
 	toReq := base.ResolveReference(endpt)
 
