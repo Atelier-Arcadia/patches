@@ -1,9 +1,13 @@
 package clients
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/platform"
@@ -82,20 +86,27 @@ func __retrieve(
 		resp, err := http.Get(url)
 		if err != nil {
 			errs <- err
+			log.Error(err)
 			break
 		}
 
 		respData := clairServerResponse{}
-		decoder := json.NewDecoder(resp.Body)
+		content, _ := ioutil.ReadAll(resp.Body)
+		decoder := json.NewDecoder(bytes.NewReader(content))
+
+		//decoder := json.NewDecoder(resp.Body)
 		decodeErr := decoder.Decode(&respData)
 		resp.Body.Close()
 		if decodeErr != nil {
 			errs <- decodeErr
+			log.Error(decodeErr)
 			break
 		}
 
 		if respData.Error != nil {
-			errs <- fmt.Errorf("%s", *respData.Error)
+			err := fmt.Errorf("%s", *respData.Error)
+			errs <- err
+			log.Error(err)
 			break
 		}
 
@@ -112,5 +123,6 @@ func __retrieve(
 		<-client.block()
 	}
 
+	log.Debugf("Finished")
 	finished <- done.Done{}
 }

@@ -23,7 +23,7 @@ type response struct {
 	Vulnerabilities []vulnerability.Vulnerability `json:"vulns"`
 }
 
-func TestClairClientFetch(t *testing.T) {
+func TestClairClientVulnerabilities(t *testing.T) {
 	testCases := []struct {
 		Description    string
 		PlatformName   string
@@ -84,8 +84,11 @@ func TestClairClientFetch(t *testing.T) {
 			serverURL, _ := url.Parse(server.URL)
 			serverPort, _ := strconv.ParseUint(serverURL.Port(), 10, 16)
 
-			limiter := limit.ConstantRateLimiter(0 * time.Second)
-			client := NewClairClient(serverURL.Hostname(), uint16(serverPort), limiter)
+			limiter := limit.ConstantRateLimiter(10 * time.Millisecond)
+			client := NewClairClient(
+				"http://"+serverURL.Hostname(),
+				uint16(serverPort),
+				limiter)
 
 			vulns, fin, errs := client.Vulnerabilities(platform.Debian8)
 			var err error
@@ -139,7 +142,8 @@ func serveVulns(num uint) http.HandlerFunc {
 			res.Write([]byte(`{
         "error": "no more vulnerabilies to serve",
         "requestID": "",
-        "vulnerabilities": []
+        "finished": false,
+        "vulns": []
       }`))
 			return
 		}
@@ -160,21 +164,25 @@ func serveVulns(num uint) http.HandlerFunc {
 			res.Write([]byte(fmt.Sprintf(`{
         "error": "%s",
         "requestID": "",
-        "vulnerabilities": []
+        "finished": false,
+        "vulns": []
       }`, errMsg)))
 			return
 		}
 
-		res.Write([]byte(`{
+		served++
+		finished := served == num
+		res.Write([]byte(fmt.Sprintf(`{
       "error": null,
       "requestID": "testid",
-      "vulnerabilities": [
+      "finished": %v,
+      "vulns": [
         {
           "name": "testvuln",
           "affectedPackageName": "testpackage",
           "affectedPlatform": "debian-8",
           "detailsHref": "link",
-          "severityRating": "low",
+          "severityRating": 2,
           "fixedInPackages": [
             {
               "name": "testpackage",
@@ -183,7 +191,7 @@ func serveVulns(num uint) http.HandlerFunc {
           ]
         }
       ]
-    }`))
+    }`, finished)))
 	}
 }
 
@@ -193,6 +201,6 @@ func serveError(res http.ResponseWriter, req *http.Request) {
 	res.Write([]byte(`{
     "error": "testerror",
     "requestID": "",
-    "vulnerabilities": []
+    "vulns": []
   }`))
 }
