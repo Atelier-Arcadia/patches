@@ -1,10 +1,8 @@
 package clients
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
@@ -91,10 +89,7 @@ func __retrieve(
 		}
 
 		respData := clairServerResponse{}
-		content, _ := ioutil.ReadAll(resp.Body)
-		decoder := json.NewDecoder(bytes.NewReader(content))
-
-		//decoder := json.NewDecoder(resp.Body)
+		decoder := json.NewDecoder(resp.Body)
 		decodeErr := decoder.Decode(&respData)
 		resp.Body.Close()
 		if decodeErr != nil {
