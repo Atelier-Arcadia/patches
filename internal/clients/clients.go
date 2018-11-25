@@ -12,8 +12,8 @@ import (
 	"github.com/arcrose/patches/internal/limit"
 )
 
-const startFetchEndptFmt string = "%s:%s/vulns?platform=%s"
-const continueFetchEndptFmt string = "%s:%s/vulns?platform=%s&requestID=%s"
+const startFetchEndptFmt string = "%s:%d/vulns?platform=%s"
+const continueFetchEndptFmt string = "%s:%d/vulns?platform=%s&requestID=%s"
 
 // ClairClient is capable of communicating with a vulnerability source over HTTP.
 type ClairClient struct {

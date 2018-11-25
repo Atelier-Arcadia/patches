@@ -7,10 +7,13 @@ import (
 	"net/url"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/arcrose/patches/pkg/pack"
 	"github.com/arcrose/patches/pkg/platform"
 	"github.com/arcrose/patches/pkg/vulnerability"
+
+	"github.com/arcrose/patches/internal/limit"
 )
 
 type response struct {
@@ -81,7 +84,8 @@ func TestClairClientFetch(t *testing.T) {
 			serverURL, _ := url.Parse(server.URL)
 			serverPort, _ := strconv.ParseUint(serverURL.Port(), 10, 16)
 
-			client := NewClairClient(serverURL.Hostname(), uint16(serverPort))
+			limiter := limit.ConstantRateLimiter(0 * time.Second)
+			client := NewClairClient(serverURL.Hostname(), uint16(serverPort), limiter)
 
 			vulns, fin, errs := client.Vulnerabilities(platform.Debian8)
 			var err error
