@@ -16,6 +16,7 @@ type Scheduler struct {
 	client    vulnerability.Source
 	pform     platform.Platform
 	terminate chan done.Done
+	confirm   chan done.Done
 }
 
 type Agent struct {
@@ -23,7 +24,7 @@ type Agent struct {
 	schedule Scheduler
 }
 
-type fetchVulnsJob struct {
+type fetchJob struct {
 	vulns    <-chan vulnerability.Vulnerability
 	finished <-chan done.Done
 	errs     <-chan error
@@ -71,11 +72,28 @@ func (scheduler Scheduler) start() (
 	vulnPipe := make(chan vulnerability.Vulnerability)
 	errPipe := make(chan error)
 
-	// go __runJobs(scheduler, vulnPipe, errPipe)
+	go __runJobs(scheduler, vulnPipe, errPipe)
 
 	return vulnPipe, errPipe
 }
 
 func (scheduler Scheduler) stop() {
 	scheduler.terminate <- done.Done{}
+	<-scheduler.confirm
+}
+
+func __runJobs(
+	scheduler Scheduler,
+	vulns chan<- vulnerability.Vulnerability,
+	errs chan<- error,
+) {
+}
+
+func __spawn(client vulnerability.Source, pform platform.Platform) fetchJob {
+	vulns, finished, errs := client.Vulnerabilities(pform)
+	return fetchJob{
+		vulns,
+		finished,
+		errs,
+	}
 }
