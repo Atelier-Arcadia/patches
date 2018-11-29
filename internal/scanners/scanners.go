@@ -1,6 +1,9 @@
 package scanners
 
 import (
+	"errors"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/arcrose/patches/pkg/done"
@@ -11,89 +14,80 @@ import (
 	"github.com/arcrose/patches/internal/limit"
 )
 
-type Scheduler struct {
-	schedule  limit.RateLimiter
-	client    vulnerability.Source
-	pform     platform.Platform
-	terminate chan done.Done
-	confirm   chan done.Done
-}
+// ErrCancelled may be returned by a call to Cancel.Confirm, indicating that
+// a process tried to confirm that it is terminating more than once.
+var ErrCancelled error = errors.New("already cancelled")
 
+// Agent is a top-level type that contains all of the dependencies required to
+// run a scanner.
+// VulnSource is the source from which information about vulnerabilities can
+// be retrieved.
+// Platform is the platform the Agent is running on.
+// ScanFrequency determines how frequently the Agent will start a scan.
+// SystemScanner handles checking the host for a vulnerable package.
+// Findings will have vulnerable packages found on the host written to it.
 type Agent struct {
-	scanner  pack.Scanner
-	schedule Scheduler
+	VulnSource    vulnerability.Source
+	Platform      platform.Platform
+	ScanFrequency time.Duration
+	SystemScanner pack.Scanner
+	Findings      chan<- pack.Package
 }
 
-type fetchJob struct {
-	vulns    <-chan vulnerability.Vulnerability
-	finished <-chan done.Done
-	errs     <-chan error
+// Cancel provides a means of instructing a process to terminate.
+type Cancel struct {
+	terminate   chan done.Done
+	confirm     chan done.Done
+	isCancelled bool
 }
 
-func NewScheduler(
-	schedule limit.RateLimiter,
-	client vulnerability.Source,
-	pform platform.Platform,
-) Scheduler {
-	return Scheduler{
-		schedule,
-		client,
-		pform,
-		terminate: make(chan done.Done),
+type scheduler struct {
+	schedule   limit.RateLimiter
+	ticks      chan<- bool
+	killSignal Cancel
+}
+
+type jobRunner struct {
+	currentJob  *vulnerability.Job
+	jobFinished bool
+	client      vulnerability.Source
+	pform       platform.Platform
+	runTrigger  <-chan bool
+	killSignal  Cancel
+}
+
+// NewCancel constructs a Cancel for signalling desire to terminate a process.
+func NewCancel() Cancel {
+	return Cancel{
+		terminate:   make(chan done.Done),
+		confirm:     make(chan done.Done),
+		isCancelled: false,
 	}
 }
 
-func NewAgent(scan pack.Scanner, scheduler Scheduler) Agent {
-	return Agent{
-		scan,
-		scheduler,
+// Run starts an Agent process of periodically scanning
+func (agent Agent) Run() Cancel {
+	return NewCancel()
+}
+
+// Send a signal to terminate the owner of the Cancel.
+// This method blocks until the owner confirms that it has received
+// the termination signal and will exit.
+func (cancel *Cancel) Terminate() {
+	if cancel.isCancelled {
+		return
 	}
+	cancel.terminate <- done.Done{}
+	<-cancel.confirm
+	cancel.isCancelled = true
 }
 
-func (agent Agent) Run() {
-	vulns, errs := agent.scheduler.start()
-
-readall:
-	for {
-		select {
-		case vuln := <-vulns:
-			log.Infof("Got a vuln: %s", vuln.String())
-
-		case err := <-errs:
-			log.Error(err)
-		}
+// Confirm should be called by owners of a Cancel to indicate that it
+// (the owner) has received a terminate signal and will exit immediately.
+func (cancel *Cancel) Confirm() error {
+	if cancel.isCancelled {
+		return ErrCancelled
 	}
-}
-
-func (scheduler Scheduler) start() (
-	<-chan vulnerability.Vulnerability,
-	<-chan error,
-) {
-	vulnPipe := make(chan vulnerability.Vulnerability)
-	errPipe := make(chan error)
-
-	go __runJobs(scheduler, vulnPipe, errPipe)
-
-	return vulnPipe, errPipe
-}
-
-func (scheduler Scheduler) stop() {
-	scheduler.terminate <- done.Done{}
-	<-scheduler.confirm
-}
-
-func __runJobs(
-	scheduler Scheduler,
-	vulns chan<- vulnerability.Vulnerability,
-	errs chan<- error,
-) {
-}
-
-func __spawn(client vulnerability.Source, pform platform.Platform) fetchJob {
-	vulns, finished, errs := client.Vulnerabilities(pform)
-	return fetchJob{
-		vulns,
-		finished,
-		errs,
-	}
+	cancel.confirm <- done.Done{}
+	return nil
 }
