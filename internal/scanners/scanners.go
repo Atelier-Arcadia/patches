@@ -42,6 +42,7 @@ type Cancel struct {
 type scheduler struct {
 	schedule   limit.RateLimiter
 	ticks      chan<- bool
+	started    bool
 	killSignal Cancel
 }
 
@@ -57,9 +58,18 @@ type jobRunner struct {
 // NewCancel constructs a Cancel for signalling desire to terminate a process.
 func NewCancel() Cancel {
 	return Cancel{
-		terminate:   make(chan done.Done),
-		confirm:     make(chan done.Done),
+		terminate:   make(chan done.Done, 1),
+		confirm:     make(chan done.Done, 1),
 		isCancelled: false,
+	}
+}
+
+func newScheduler(freq time.Duration, out chan<- bool) scheduler {
+	return scheduler{
+		limit.ConstantRateLimiter(freq),
+		out,
+		false,
+		NewCancel(),
 	}
 }
 
@@ -98,5 +108,37 @@ func (cancel *Cancel) Confirm() error {
 		return ErrCancelled
 	}
 	cancel.confirm <- done.Done{}
+	return nil
+}
+
+func (sched *scheduler) start() error {
+	if sched.started {
+		return errors.New("cannot start a scheduler more than once")
+	}
+	sched.started = true
+
+	go func() {
+		block := sched.schedule
+
+		for {
+			<-block()
+			if sched.killSignal.Check() {
+				sched.killSignal.Confirm()
+				return
+			}
+			sched.ticks <- true
+		}
+	}()
+
+	return nil
+}
+
+func (sched *scheduler) stop() error {
+	if !sched.started {
+		return errors.New("cannot stop a scheduler that has not been started")
+	}
+
+	sched.killSignal.Terminate()
+	sched.started = false
 	return nil
 }
