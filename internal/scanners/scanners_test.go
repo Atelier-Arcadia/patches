@@ -25,9 +25,23 @@ func TestCancel(t *testing.T) {
 func TestScheduler(t *testing.T) {
 	ticks := make(chan bool, 5)
 	schedule := newScheduler(100*time.Millisecond, ticks, nil)
-	schedule.start()
+
+	if err := schedule.stop(); err == nil {
+		t.Errorf("Should not be able to stop a scheduler that has not been started")
+	}
+	if err = schedule.start(); err != nil {
+		t.Error(err)
+	}
+	if err = schedule.start(); err == nil {
+		t.Errorf("Should not be able to start a scheduler twice")
+	}
 	<-time.After(300 * time.Millisecond)
-	schedule.stop()
+	if err = schedule.stop(); err != nil {
+		t.Error(err)
+	}
+	if err = schedule.stop(); err == nil {
+		t.Errorf("Should not be able to stop a scheduler twice")
+	}
 
 	ticksReceived := 0
 	for ticksReceived < 3 {
