@@ -4,8 +4,6 @@ import (
 	"errors"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/pack"
 	"github.com/arcrose/patches/pkg/platform"
