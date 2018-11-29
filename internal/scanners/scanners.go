@@ -82,6 +82,17 @@ func (cancel *Cancel) Terminate() {
 	cancel.isCancelled = true
 }
 
+// Check will determine whether a signal has been sent to cancel the owner.
+func (cancel *Cancel) Check() bool {
+	select {
+	case <-cancel.terminate:
+		return true
+
+	default:
+		return false
+	}
+}
+
 // Confirm should be called by owners of a Cancel to indicate that it
 // (the owner) has received a terminate signal and will exit immediately.
 func (cancel *Cancel) Confirm() error {
