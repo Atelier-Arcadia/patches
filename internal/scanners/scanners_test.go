@@ -21,3 +21,25 @@ func TestCancel(t *testing.T) {
 		t.Errorf("Expected a second call to Cancel.Confirm to return an error")
 	}
 }
+
+func TestScheduler(t *testing.T) {
+	ticks := make(chan bool, 5)
+	schedule := newScheduler(100*time.Millisecond, ticks, nil)
+	schedule.start()
+	<-time.After(300 * time.Millisecond)
+	schedule.stop()
+
+	ticksReceived := 0
+	for ticksReceived < 3 {
+		<-ticks
+		ticksReceived++
+	}
+
+	select {
+	case <-ticks:
+		t.Errorf("Schedule should not send any more ticks after being stopped")
+
+	default:
+		break
+	}
+}
