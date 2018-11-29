@@ -189,20 +189,17 @@ func serveError(errMsg string) mockSource {
 	}
 }
 
-func (mock mockSource) Vulnerabilities(_ platform.Platform) (
-	<-chan vulnerability.Vulnerability,
-	<-chan done.Done,
-	<-chan error,
-) {
-
-	vulns := make(chan vulnerability.Vulnerability)
-	finished := make(chan done.Done, 1)
-	errs := make(chan error, 1)
+func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
+	job := vulnerability.Job{
+		Vulns:    make(chan vulnerability.Vulnerability),
+		Finished: make(chan done.Done, 1),
+		Errors:   make(chan error, 1),
+	}
 
 	if mock.NumToGenerate == 0 {
-		errs <- fmt.Errorf("%s", mock.ErrorMessage)
-		finished <- done.Done{}
-		return vulns, finished, errs
+		job.Errors <- fmt.Errorf("%s", mock.ErrorMessage)
+		job.Finished <- done.Done{}
+		return job
 	}
 
 	go func() {
@@ -211,7 +208,7 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) (
 			vulnName := fmt.Sprintf("testvuln%d", i+1)
 			pkgName := fmt.Sprintf("testpackage%d", i+1)
 
-			vulns <- vulnerability.Vulnerability{
+			job.Vulns <- vulnerability.Vulnerability{
 				Name:                 vulnName,
 				AffectedPackageName:  pkgName,
 				AffectedPlatformName: "debian-8",
@@ -226,8 +223,8 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) (
 			}
 		}
 
-		finished <- done.Done{}
+		job.Finished <- done.Done{}
 	}()
 
-	return vulns, finished, errs
+	return job
 }

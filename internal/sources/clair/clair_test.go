@@ -6,17 +6,12 @@ import (
 	"strings"
 	"testing"
 
-<<<<<<< HEAD
+	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/pack"
+	"github.com/arcrose/patches/pkg/platform"
 	"github.com/arcrose/patches/pkg/vulnerability"
-=======
-	"github.com/zsck/patches/pkg/done"
-	"github.com/zsck/patches/pkg/pack"
-	"github.com/zsck/patches/pkg/platform"
-	"github.com/zsck/patches/pkg/vulnerability"
 
-	"github.com/zsck/patches/internal/limit"
->>>>>>> 6b29618510b19dbc236d2aca7cbb85dc754c7e43
+	"github.com/arcrose/patches/internal/limit"
 )
 
 func TestSummarizeVulnerabilities(t *testing.T) {
@@ -242,7 +237,7 @@ func TestSourceImplementation(t *testing.T) {
 				{
 					Name:                 "testvulnfull",
 					AffectedPackageName:  "testpackage",
-					AffectedPlatformName: "debian:8",
+					AffectedPlatformName: "debian-8",
 					DetailsHref:          "address.website",
 					SeverityRating:       vulnerability.SeverityLow,
 					FixedInPackages: []pack.Package{
@@ -259,7 +254,7 @@ func TestSourceImplementation(t *testing.T) {
 				{
 					Name:                 "testvulnfull",
 					AffectedPackageName:  "testpackage",
-					AffectedPlatformName: "debian:8",
+					AffectedPlatformName: "debian-8",
 					DetailsHref:          "address.website",
 					SeverityRating:       vulnerability.SeverityLow,
 					FixedInPackages: []pack.Package{
@@ -276,7 +271,7 @@ func TestSourceImplementation(t *testing.T) {
 				{
 					Name:                 "testvulnfull",
 					AffectedPackageName:  "testpackage",
-					AffectedPlatformName: "debian:8",
+					AffectedPlatformName: "debian-8",
 					DetailsHref:          "address.website",
 					SeverityRating:       vulnerability.SeverityLow,
 					FixedInPackages: []pack.Package{
@@ -330,23 +325,20 @@ func TestSourceImplementation(t *testing.T) {
 				d <- done.Done{}
 				return d
 			})
-			vulnChan, done, errs := NewStream(
-				clair,
-				rateLimiter,
-			).Vulnerabilities(testCase.TargetPlatform)
+			job := NewStream(clair, rateLimiter).Vulnerabilities(testCase.TargetPlatform)
 
 			vulns := []vulnerability.Vulnerability{}
 		readall:
 			for {
 				select {
-				case vuln := <-vulnChan:
+				case vuln := <-job.Vulns:
 					t.Logf("Got vuln: %v", vuln)
 					vulns = append(vulns, vuln)
 
-				case <-done:
+				case <-job.Finished:
 					break readall
 
-				case err := <-errs:
+				case err := <-job.Errors:
 					if !testCase.ExpectError {
 						t.Fatalf("Did not expect an error, but got '%s'", err.Error())
 					}

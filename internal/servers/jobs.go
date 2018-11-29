@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
@@ -23,7 +22,7 @@ type complete bool
 // VulnJobManager manages "jobs" containing channels from which vulnerabilities
 // are read.
 type VulnJobManager struct {
-	managing    map[string]FetchVulnsJob
+	managing    map[string]vulnerability.Job
 	numManaged  uint
 	maxJobs     uint
 	maxReadTime time.Duration
@@ -35,40 +34,20 @@ type VulnJobManagerOptions struct {
 	ReadTimeout time.Duration
 }
 
-// FetchVulnsJob represents a job managed by the VulnJobManager.
-type FetchVulnsJob struct {
-	vulns    <-chan vulnerability.Vulnerability
-	finished <-chan done.Done
-	errs     <-chan error
-}
-
 // NewVulnJobManager constructs a new VulnJobManager.
 func NewVulnJobManager(opts VulnJobManagerOptions) VulnJobManager {
 	opts.applyDefaults()
 	return VulnJobManager{
-		managing:    make(map[string]FetchVulnsJob),
+		managing:    make(map[string]vulnerability.Job),
 		numManaged:  0,
 		maxJobs:     opts.MaxJobs,
 		maxReadTime: opts.ReadTimeout,
 	}
 }
 
-// NewFetchVulnsJob constructs a new FetchVulnsJob.
-func NewFetchVulnsJob(
-	vulns <-chan vulnerability.Vulnerability,
-	finished <-chan done.Done,
-	errs <-chan error,
-) FetchVulnsJob {
-	return FetchVulnsJob{
-		vulns,
-		finished,
-		errs,
-	}
-}
-
 // Register attempts to add a new job to the manager, returning an ID that
 // must be provided during lookups.
-func (jobs *VulnJobManager) Register(job FetchVulnsJob) (string, error) {
+func (jobs *VulnJobManager) Register(job vulnerability.Job) (string, error) {
 	if jobs.numManaged >= jobs.maxJobs {
 		return "", fmt.Errorf("job queue full; try again later")
 	}
@@ -107,16 +86,16 @@ readUntilTimeout:
 		case <-time.After(timeLeft):
 			break readUntilTimeout
 
-		case <-job.finished:
+		case <-job.Finished:
 			delete(jobs.managing, jobID)
 			jobs.numManaged--
 			fin = complete(true)
 			break readUntilTimeout
 
-		case err := <-job.errs:
+		case err := <-job.Errors:
 			errs = append(errs, err)
 
-		case vuln := <-job.vulns:
+		case vuln := <-job.Vulns:
 			vulns = append(vulns, vuln)
 		}
 	}

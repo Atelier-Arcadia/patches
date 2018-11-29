@@ -38,10 +38,11 @@ func TestRegister(t *testing.T) {
 
 		var i uint
 		for i = 0; i < testCase.NumJobsToRegister; i++ {
-			_, err := jobManager.Register(NewFetchVulnsJob(
-				make(chan vulnerability.Vulnerability),
-				make(chan done.Done),
-				make(chan error)))
+			_, err := jobManager.Register(vulnerability.Job{
+				Vulns:    make(chan vulnerability.Vulnerability),
+				Finished: make(chan done.Done),
+				Errors:   make(chan error),
+			})
 			if err != nil {
 				numErrors++
 			}
@@ -80,10 +81,11 @@ func TestRetrieve(t *testing.T) {
 
 		finished := make(chan done.Done, 1)
 
-		jobID, err := jobManager.Register(NewFetchVulnsJob(
-			make(chan vulnerability.Vulnerability),
-			finished,
-			make(chan error)))
+		jobID, err := jobManager.Register(vulnerability.Job{
+			Vulns:    make(chan vulnerability.Vulnerability),
+			Finished: finished,
+			Errors:   make(chan error),
+		})
 		if err != nil {
 			t.Fatal(err)
 		}

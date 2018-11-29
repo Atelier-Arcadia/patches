@@ -112,9 +112,9 @@ func (server ClairVulnServer) __newJob(pform platform.Platform) (
 	[]error,
 	complete,
 ) {
-	vulns, finished, errs := server.source.Vulnerabilities(pform)
+	job := server.source.Vulnerabilities(pform)
 
-	jobID, err := server.jobs.Register(NewFetchVulnsJob(vulns, finished, errs))
+	jobID, err := server.jobs.Register(job)
 	if err != nil {
 		return "", []vulnerability.Vulnerability{}, []error{err}, complete(false)
 	}

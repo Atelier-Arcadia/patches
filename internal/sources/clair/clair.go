@@ -129,35 +129,35 @@ func toPackage(f fix) pack.Package {
 
 func translateName(pform platform.Platform) string {
 	translations := map[platform.Platform]string{
-		CentOS5:        "centos:5",
-		CentOS6:        "centos:6",
-		CentOS7:        "centos:7",
-		Debian8:        "debian:8",
-		Debian9:        "debian:9",
-		Debian10:       "debian:10",
-		DebianUnstable: "debian:unstable",
-		Alpine3_3:      "alpine:v3.3",
-		Alpine3_4:      "alpine:v3.4",
-		Alpine3_5:      "alpine:v3.5",
-		Alpine3_6:      "alpine:v3.6",
-		Alpine3_7:      "alpine:v3.7",
-		Alpine3_8:      "alpine:v3.8",
-		Oracle5:        "oracle:5",
-		Oracle6:        "oracle:6",
-		Oracle7:        "oracle:7",
-		Ubuntu12_04:    "ubuntu:12.04",
-		Ubuntu12_10:    "ubuntu:12.10",
-		Ubuntu13_04:    "ubuntu:13.04",
-		Ubuntu13_10:    "ubuntu:13.10",
-		Ubuntu14_04:    "ubuntu:14.04",
-		Ubuntu14_10:    "ubuntu:14.10",
-		Ubuntu15_04:    "ubuntu:15.04",
-		Ubuntu15_10:    "ubuntu:15.10",
-		Ubuntu16_04:    "ubuntu:16.04",
-		Ubuntu16_10:    "ubuntu:16.10",
-		Ubuntu17_04:    "ubuntu:17.04",
-		Ubuntu17_10:    "ubuntu:17.10",
-		Ubuntu18_04:    "ubuntu:18.04",
+		platform.CentOS5:        "centos:5",
+		platform.CentOS6:        "centos:6",
+		platform.CentOS7:        "centos:7",
+		platform.Debian8:        "debian:8",
+		platform.Debian9:        "debian:9",
+		platform.Debian10:       "debian:10",
+		platform.DebianUnstable: "debian:unstable",
+		platform.Alpine3_3:      "alpine:v3.3",
+		platform.Alpine3_4:      "alpine:v3.4",
+		platform.Alpine3_5:      "alpine:v3.5",
+		platform.Alpine3_6:      "alpine:v3.6",
+		platform.Alpine3_7:      "alpine:v3.7",
+		platform.Alpine3_8:      "alpine:v3.8",
+		platform.Oracle5:        "oracle:5",
+		platform.Oracle6:        "oracle:6",
+		platform.Oracle7:        "oracle:7",
+		platform.Ubuntu12_04:    "ubuntu:12.04",
+		platform.Ubuntu12_10:    "ubuntu:12.10",
+		platform.Ubuntu13_04:    "ubuntu:13.04",
+		platform.Ubuntu13_10:    "ubuntu:13.10",
+		platform.Ubuntu14_04:    "ubuntu:14.04",
+		platform.Ubuntu14_10:    "ubuntu:14.10",
+		platform.Ubuntu15_04:    "ubuntu:15.04",
+		platform.Ubuntu15_10:    "ubuntu:15.10",
+		platform.Ubuntu16_04:    "ubuntu:16.04",
+		platform.Ubuntu16_10:    "ubuntu:16.10",
+		platform.Ubuntu17_04:    "ubuntu:17.04",
+		platform.Ubuntu17_10:    "ubuntu:17.10",
+		platform.Ubuntu18_04:    "ubuntu:18.04",
 	}
 
 	name, _ := translations[pform]
@@ -242,12 +242,8 @@ func __describe(
 		return
 	}
 
-<<<<<<< HEAD
-	ext := fmt.Sprintf(vulnDescriptionEndptFmt, translateName(pform), vulnName)
-=======
 	name := strings.Split(vulnName, " ")[0]
 	ext := fmt.Sprintf(vulnDescriptionEndptFmt, pform, name)
->>>>>>> 6b29618510b19dbc236d2aca7cbb85dc754c7e43
 	endpt, _ := url.Parse(ext)
 	toReq := base.ResolveReference(endpt)
 
@@ -428,26 +424,18 @@ func __toDescriptionResponse(jsonData map[string]interface{}) (descriptionRespon
 	return desc, nil
 }
 
-func (stream Stream) Vulnerabilities(pform platform.Platform) (
-	<-chan vulnerability.Vulnerability,
-	<-chan done.Done,
-	<-chan error,
-) {
-	vulns := make(chan vulnerability.Vulnerability)
-	finished := make(chan done.Done)
-	errs := make(chan error)
+func (stream Stream) Vulnerabilities(pform platform.Platform) vulnerability.Job {
+	job := vulnerability.Job{
+		Vulns:    make(chan vulnerability.Vulnerability),
+		Finished: make(chan done.Done),
+		Errors:   make(chan error),
+	}
 
-	go __stream(stream, pform, vulns, finished, errs)
-	return vulns, finished, errs
+	go __stream(stream, pform, job)
+	return job
 }
 
-func __stream(
-	stream Stream,
-	pform platform.Platform,
-	vulns chan<- vulnerability.Vulnerability,
-	finished chan<- done.Done,
-	errs chan<- error,
-) {
+func __stream(stream Stream, pform platform.Platform, job vulnerability.Job) {
 	summaries, sumFinished, sumErrs := summarizeVulnerabilities(
 		stream.config,
 		stream.block,
@@ -460,7 +448,12 @@ func __stream(
 		select {
 		case sum := <-summaries:
 			<-stream.block()
-			go __fetchDescription(stream, pform, sum, vulns, jobsFinished, errs)
+			mappedJob := vulnerability.Job{
+				Vulns:    job.Vulns,
+				Finished: jobsFinished,
+				Errors:   job.Errors,
+			}
+			go __fetchDescription(stream, pform, sum, mappedJob)
 			jobs++
 
 		case <-sumFinished:
@@ -470,20 +463,18 @@ func __stream(
 			jobs--
 
 		case err := <-sumErrs:
-			errs <- err
+			job.Errors <- err
 		}
 	}
 
-	finished <- done.Done{}
+	job.Finished <- done.Done{}
 }
 
 func __fetchDescription(
 	stream Stream,
 	pform platform.Platform,
 	sum summary,
-	vulns chan<- vulnerability.Vulnerability,
-	finished chan<- done.Done,
-	errs chan<- error,
+	job vulnerability.Job,
 ) {
 	descriptions, descFinished, descErrs := describeVulnerability(
 		stream.config,
@@ -495,16 +486,16 @@ readall:
 	for {
 		select {
 		case desc := <-descriptions:
-			vulns <- toVulnerability(desc, pform)
+			job.Vulns <- toVulnerability(desc, pform)
 			break readall
 
 		case <-descFinished:
 			break readall
 
 		case err := <-descErrs:
-			errs <- err
+			job.Errors <- err
 		}
 	}
 
-	finished <- done.Done{}
+	job.Finished <- done.Done{}
 }
