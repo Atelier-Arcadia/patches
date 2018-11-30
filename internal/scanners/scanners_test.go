@@ -257,6 +257,7 @@ func TestJobRunner(t *testing.T) {
 			}
 		}()
 
+		t.Logf("Running scenario")
 		errs := testCase.Scenario(testCase.TestConfig, runner)
 
 		for _, err := range errs {

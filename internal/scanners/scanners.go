@@ -4,6 +4,8 @@ import (
 	"errors"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/pack"
 	"github.com/arcrose/patches/pkg/platform"
@@ -46,8 +48,12 @@ type scheduler struct {
 	killSignal Cancel
 }
 
+// Re-use the Job structure as the output from jobRunner.
+// It's all just plumbing.
+type stream vulnerability.Job
+
 type jobRunner struct {
-	currentJob  *vulnerability.Job
+	queued      uint
 	jobFinished bool
 	client      vulnerability.Source
 	pform       platform.Platform
@@ -70,6 +76,21 @@ func newScheduler(freq time.Duration, out chan<- bool) scheduler {
 		out,
 		false,
 		NewCancel(),
+	}
+}
+
+func newJobRunner(
+	source vulnerability.Source,
+	pform platform.Platform,
+	signal <-chan bool,
+) jobRunner {
+	return jobRunner{
+		queued:      0,
+		jobFinished: true,
+		client:      source,
+		pform:       pform,
+		runSignal:   signal,
+		killSignal:  NewCancel(),
 	}
 }
 
@@ -141,4 +162,90 @@ func (sched *scheduler) stop() error {
 	sched.killSignal.Terminate()
 	sched.started = false
 	return nil
+}
+
+func (runner *jobRunner) start() stream {
+	s := stream{
+		Vulns:    make(chan vulnerability.Vulnerability),
+		Finished: make(chan done.Done),
+		Errors:   make(chan error),
+	}
+
+	go __stream(&s, runner)
+
+	return s
+}
+
+func (runner jobRunner) stop() {
+	runner.killSignal.Terminate()
+	log.Debugf("Stopped")
+}
+
+func __stream(s *stream, runner *jobRunner) {
+	killSignal := __handleKillSignal(runner.killSignal)
+
+top:
+	for {
+		select {
+		case <-runner.runSignal:
+			log.Debugf("stream got run signal")
+			__handleSignal(s, runner, killSignal)
+
+		case <-killSignal:
+			log.Debugf("stream got kill signal")
+			break top
+		}
+	}
+}
+
+func __handleKillSignal(cancel Cancel) chan done.Done {
+	signal := make(chan done.Done)
+
+	go func() {
+		for {
+			<-time.After(100 * time.Millisecond)
+			if cancel.Check() {
+				log.Debugf("Got kill signal")
+				signal <- done.Done{}
+				return
+			}
+		}
+	}()
+
+	return signal
+}
+
+func __handleSignal(s *stream, runner *jobRunner, killSignal chan done.Done) {
+	if !runner.jobFinished {
+		log.Debugf("Queuing a job")
+		runner.queued++
+		return
+	}
+
+	log.Debugf("Starting a job")
+	job := runner.client.Vulnerabilities(runner.pform)
+	runner.jobFinished = false
+
+	go func() {
+	top:
+		for {
+			select {
+			case vuln := <-job.Vulns:
+				log.Debugf("Got a vuln")
+				s.Vulns <- vuln
+
+			case <-job.Finished:
+				runner.jobFinished = true
+
+			case err := <-job.Errors:
+				log.Debugf("Got an error '%s'", err.Error())
+				s.Errors <- err
+
+			case <-killSignal:
+				log.Debugf("handleSignal: kill signal recv")
+				killSignal <- done.Done{}
+				break top
+			}
+		}
+	}()
 }
