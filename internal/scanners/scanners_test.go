@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -69,7 +70,7 @@ func TestScheduler(t *testing.T) {
 func TestJobRunner(t *testing.T) {
 	type config struct {
 		TimesToSignal   uint
-		SignalPause     time.Time
+		SignalPause     time.Duration
 		VulnsToProduce  uint
 		ErrorsToProduce uint
 	}
@@ -90,7 +91,7 @@ func TestJobRunner(t *testing.T) {
 				stream := runner.start()
 				errs := []error{}
 
-				vulnsReceived := 0
+				var vulnsReceived uint = 0
 			readall:
 				for {
 					select {
@@ -123,7 +124,7 @@ func TestJobRunner(t *testing.T) {
 				stream := runner.start()
 				errs := []error{}
 
-				errsReceived := 0
+				var errsReceived uint = 0
 			readall:
 				for {
 					select {
@@ -157,8 +158,8 @@ func TestJobRunner(t *testing.T) {
 				stream := runner.start()
 				errs := []error{}
 
-				vulnsReceived := 0
-				errsReceived := 0
+				var vulnsReceived uint = 0
+				var errsReceived uint = 0
 			readall:
 				for {
 					select {
@@ -173,7 +174,7 @@ func TestJobRunner(t *testing.T) {
 					}
 				}
 
-				expected := config.VulnsToProduce * config.TimesToSignal
+				expected := cfg.VulnsToProduce * cfg.TimesToSignal
 				if vulnsReceived != expected {
 					errs = append(errs, fmt.Errorf(
 						"Expected %d vulns, got %d",
@@ -181,7 +182,7 @@ func TestJobRunner(t *testing.T) {
 						vulnsReceived))
 				}
 
-				expected = config.ErrorsToProduce * config.TimesToSignal
+				expected = cfg.ErrorsToProduce * cfg.TimesToSignal
 				if errsReceived != expected {
 					errs = append(errs, fmt.Errorf(
 						"Expected %d errors, got %d",
@@ -240,7 +241,7 @@ func TestJobRunner(t *testing.T) {
 
 		signal := make(chan bool)
 		runner := newJobRunner(
-			mockSource(testCase.TestConfig.VulnsToProduce),
+			mockSource{testCase.TestConfig.VulnsToProduce},
 			platform.Debian8,
 			signal)
 
@@ -261,9 +262,9 @@ func TestJobRunner(t *testing.T) {
 }
 
 func (mock mockSource) Vulnerabilities(pform platform.Platform) vulnerability.Job {
-	vulns := make(chan vuln.Vulnerability, mock.numVulns)
+	vulns := make(chan vulnerability.Vulnerability, mock.numVulns)
 	finished := make(chan done.Done, 1)
-	errors = make(chan error)
+	errors := make(chan error)
 
 	go func() {
 		var i uint
