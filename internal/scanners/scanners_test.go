@@ -89,6 +89,7 @@ func TestJobRunner(t *testing.T) {
 			},
 			Scenario: func(cfg config, runner jobRunner) []error {
 				stream := runner.start()
+				defer runner.stop()
 				errs := []error{}
 
 				var vulnsReceived uint = 0
@@ -122,6 +123,7 @@ func TestJobRunner(t *testing.T) {
 			},
 			Scenario: func(cfg config, runner jobRunner) []error {
 				stream := runner.start()
+				defer runner.stop()
 				errs := []error{}
 
 				var errsReceived uint = 0
@@ -156,6 +158,7 @@ func TestJobRunner(t *testing.T) {
 			},
 			Scenario: func(cfg config, runner jobRunner) []error {
 				stream := runner.start()
+				defer runner.stop()
 				errs := []error{}
 
 				var vulnsReceived uint = 0
@@ -203,6 +206,7 @@ func TestJobRunner(t *testing.T) {
 			},
 			Scenario: func(cfg config, runner jobRunner) []error {
 				stream := runner.start()
+				defer runner.stop()
 				errs := []error{}
 
 				<-time.After(100 * time.Millisecond)
