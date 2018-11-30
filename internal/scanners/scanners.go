@@ -51,7 +51,7 @@ type jobRunner struct {
 	jobFinished bool
 	client      vulnerability.Source
 	pform       platform.Platform
-	runTrigger  <-chan bool
+	runSignal   <-chan bool
 	killSignal  Cancel
 }
 
