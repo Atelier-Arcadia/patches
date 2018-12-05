@@ -158,7 +158,6 @@ stream:
 	for {
 		select {
 		case <-runner.signals:
-			fmt.Println("jobRunner got a signal to run a job")
 			if !jobRunning {
 				job := runner.client.Vulnerabilities(runner.pform)
 				go __runJob(s, job, jobFinished, killJob, confirmKilled)
@@ -166,11 +165,9 @@ stream:
 			}
 
 		case <-jobFinished:
-			fmt.Println("jobRunner told taht current job is finished")
 			jobRunning = false
 
 		case <-runner.terminate:
-			fmt.Println("jobRunner got terminate")
 			if jobRunning {
 				killJob <- true
 				<-confirmKilled
@@ -193,20 +190,16 @@ job:
 	for {
 		select {
 		case vuln := <-job.Vulns:
-			fmt.Println("job produed a vuln")
 			s.Vulns <- vuln
 
 		case err := <-job.Errors:
-			fmt.Println("job produced an error")
 			s.Errors <- err
 
 		case <-job.Finished:
-			fmt.Println("job is finished")
 			jobFinished <- true
 			break job
 
 		case <-kill:
-			fmt.Println("runJob got kill")
 			confirm <- true
 			break job
 		}

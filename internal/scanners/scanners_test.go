@@ -170,26 +170,21 @@ func TestJobRunner(t *testing.T) {
 		for {
 			select {
 			case <-stream.Vulns:
-				fmt.Println("Test got vuln")
 				vulnsCounted++
 
 			case <-stream.Errors:
-				fmt.Println("Test got error")
 				errsCounted++
 
 			case <-stream.Finished:
-				fmt.Println("Test got finished")
 				errs = append(errs, fmt.Errorf("Stream finished unexpectedly"))
 
 			case <-finished:
-				fmt.Println("Test told to stop")
 				runner.stop()
 				break top
 			}
 		}
 
 		encounteredErrs := tcase.Fn(vulnsCounted, errsCounted, tcase.Cfg)
-		fmt.Println("Finished running test case")
 
 		for _, err := range encounteredErrs {
 			t.Error(err)
@@ -206,11 +201,9 @@ func (mock mockSource) Vulnerabilities(pform platform.Platform) vulnerability.Jo
 		var i uint
 		for i = 0; i < mock.numVulns; i++ {
 			vulns <- vulnerability.Vulnerability{}
-			fmt.Println("Wrote a vuln")
 		}
 		for i = 0; i < mock.numErrs; i++ {
 			errors <- fmt.Errorf("")
-			fmt.Println("Wrote an error")
 		}
 		finished <- done.Done{}
 	}()
