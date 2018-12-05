@@ -139,18 +139,6 @@ func TestJobRunner(t *testing.T) {
 				return errs
 			},
 		},
-		{
-			Desc: "Should only read values when a job is running",
-			Cfg: config{
-				TimesToSignal: 2,
-				SignalPause:   2 * time.Second,
-				VulnsToGen:    2,
-				ErrsToGen:     1,
-			},
-			Fn: func(vulnsCounted, errsCounted uint, cfg config) []error {
-				return []error{}
-			},
-		},
 	}
 
 	for caseNum, tcase := range testCases {
