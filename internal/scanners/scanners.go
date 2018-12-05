@@ -43,8 +43,13 @@ type scheduler struct {
 type stream vulnerability.Job
 
 type jobRunner struct {
-	client vulnerability.Source
-	pform  platform.Platform
+	client     vulnerability.Source
+	pform      platform.Platform
+	signals    <-chan signal
+	isRunning  bool
+	jobRunning bool
+	terminate  chan bool
+	confirm    chan bool
 }
 
 func newScheduler(freq time.Duration) scheduler {
@@ -54,6 +59,22 @@ func newScheduler(freq time.Duration) scheduler {
 		isStarted: false,
 		terminate: make(chan bool, 1),
 		confirm:   make(chan bool, 1),
+	}
+}
+
+func newJobRunner(
+	src vulnerability.Source,
+	pform platform.Platform,
+	signals <-chan signal,
+) jobRunner {
+	return jobRunner{
+		client:     src,
+		pform:      pform,
+		signals:    signals,
+		isRunning:  false,
+		jobRunning: false,
+		terminate:  make(chan bool, 1),
+		confirm:    make(chan bool, 1),
 	}
 }
 

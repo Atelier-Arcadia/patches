@@ -70,6 +70,94 @@ func TestScheduler(t *testing.T) {
 }
 
 func TestJobRunner(t *testing.T) {
+	type config struct {
+		TimesToSignal uint
+		SignalPause   time.Duration
+		VulnsToGen    uint
+		ErrsToGen     uint
+	}
+
+	type testCase struct {
+		Desc string
+		Cfg  config
+		Fn   func(config, jobRunner, <-chan done.Done) []error
+	}
+
+	testCases := []testCase{
+		{
+			Desc: "Should read all of the vulns and errors produced by the runner",
+			Cfg: config{
+				TimesToSignal: 1,
+				VulnsToGen:    3,
+				ErrsToGen:     2,
+			},
+			Fn: func(cfg config, runner jobRunner, finished <-chan done.Done) []error {
+				var vulnsCounted uint = 0
+				var errsCounted uint = 0
+				errs := []error{}
+				stream := runner.start()
+
+			top:
+				for {
+					select {
+					case <-stream.Vulns:
+						vulnsCounted++
+
+					case <-stream.Errors:
+						errsCounted++
+
+					case <-stream.Finished:
+						errs = append(errs, fmt.Errorf("Stream finished unexpectedly"))
+
+					case <-finished:
+						break top
+					}
+				}
+
+				if vulnsCounted != cfg.VulnsToGen {
+					errs = append(errs, fmt.Errorf(
+						"Expected to get %d vulns, but only got %d",
+						cfg.VulnsToGen,
+						vulnsCounted))
+				}
+				if errsCounted != cfg.ErrsToGen {
+					errs = append(errs, fmt.Errorf(
+						"Expected to get %d errrs, but only got %d",
+						cfg.ErrsToGen,
+						errsCounted))
+				}
+
+				return errs
+			},
+		},
+		/*
+			{
+				Desc: "Should read everything written by multiple jobs",
+			},
+			{
+				Desc: "Should only read values when a job is running",
+			},
+		*/
+	}
+
+	for caseNum, tcase := range testCases {
+		t.Logf("Running TestJobRunner case #%d: %s", caseNum, tcase.Desc)
+
+		signals := make(chan signal, tcase.Cfg.TimesToSignal)
+		runner := newJobRunner(
+			mockSource{tcase.Cfg.VulnsToGen, tcase.Cfg.ErrsToGen},
+			platform.Debian8,
+			signals)
+		finished := make(chan done.Done, 1)
+
+		finished <- done.Done{}
+
+		errs := tcase.Fn(tcase.Cfg, runner, finished)
+
+		for _, err := range errs {
+			t.Error(err)
+		}
+	}
 }
 
 func (mock mockSource) Vulnerabilities(pform platform.Platform) vulnerability.Job {
