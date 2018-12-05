@@ -78,7 +78,7 @@ func TestJobRunner(t *testing.T) {
 	testCases := []struct {
 		Description string
 		TestConfig  config
-		Scenario    func(config, jobRunner) []error
+		Scenario    func(config, stream) []error
 	}{
 		{
 			Description: "Should stream out all vulnerabilities received",
@@ -87,19 +87,17 @@ func TestJobRunner(t *testing.T) {
 				VulnsToProduce:  13,
 				ErrorsToProduce: 0,
 			},
-			Scenario: func(cfg config, runner jobRunner) []error {
-				stream := runner.start()
-				defer runner.stop()
+			Scenario: func(cfg config, s stream) []error {
 				errs := []error{}
 
 				var vulnsReceived uint = 0
 			readall:
 				for {
 					select {
-					case <-stream.Vulns:
+					case <-s.Vulns:
 						vulnsReceived++
 
-					case <-stream.Finished:
+					case <-s.Finished:
 						break readall
 					}
 				}
@@ -121,19 +119,17 @@ func TestJobRunner(t *testing.T) {
 				VulnsToProduce:  0,
 				ErrorsToProduce: 5,
 			},
-			Scenario: func(cfg config, runner jobRunner) []error {
-				stream := runner.start()
-				defer runner.stop()
+			Scenario: func(cfg config, s stream) []error {
 				errs := []error{}
 
 				var errsReceived uint = 0
 			readall:
 				for {
 					select {
-					case <-stream.Errors:
+					case <-s.Errors:
 						errsReceived++
 
-					case <-stream.Finished:
+					case <-s.Finished:
 						break readall
 					}
 				}
@@ -156,9 +152,7 @@ func TestJobRunner(t *testing.T) {
 				ErrorsToProduce: 1,
 				SignalPause:     50 * time.Millisecond,
 			},
-			Scenario: func(cfg config, runner jobRunner) []error {
-				stream := runner.start()
-				defer runner.stop()
+			Scenario: func(cfg config, s stream) []error {
 				errs := []error{}
 
 				var vulnsReceived uint = 0
@@ -166,13 +160,13 @@ func TestJobRunner(t *testing.T) {
 			readall:
 				for {
 					select {
-					case <-stream.Vulns:
+					case <-s.Vulns:
 						vulnsReceived++
 
-					case <-stream.Errors:
+					case <-s.Errors:
 						errsReceived++
 
-					case <-stream.Finished:
+					case <-s.Finished:
 						break readall
 					}
 				}
@@ -204,31 +198,29 @@ func TestJobRunner(t *testing.T) {
 				ErrorsToProduce: 0,
 				SignalPause:     2 * time.Second,
 			},
-			Scenario: func(cfg config, runner jobRunner) []error {
-				stream := runner.start()
-				defer runner.stop()
+			Scenario: func(cfg config, s stream) []error {
 				errs := []error{}
 
 				<-time.After(100 * time.Millisecond)
 				select {
-				case <-stream.Vulns:
+				case <-s.Vulns:
 					break
 
-				case <-stream.Finished:
+				case <-s.Finished:
 					errs = append(errs, fmt.Errorf("unexpectedly finished"))
 
-				case <-stream.Errors:
+				case <-s.Errors:
 					errs = append(errs, fmt.Errorf("got an error when none was expected"))
 				}
 
 				select {
-				case <-stream.Vulns:
+				case <-s.Vulns:
 					errs = append(errs, fmt.Errorf("unexpectedly got a second vuln early"))
 
-				case <-stream.Finished:
+				case <-s.Finished:
 					errs = append(errs, fmt.Errorf("unexpectedly finished 2"))
 
-				case <-stream.Errors:
+				case <-s.Errors:
 					errs = append(errs, fmt.Errorf("got an error when none was expected 2"))
 
 				default:
@@ -248,6 +240,7 @@ func TestJobRunner(t *testing.T) {
 			mockSource{testCase.TestConfig.VulnsToProduce},
 			platform.Debian8,
 			signal)
+		s := runner.start()
 
 		go func() {
 			var i uint
@@ -255,10 +248,11 @@ func TestJobRunner(t *testing.T) {
 				signal <- true
 				<-time.After(testCase.TestConfig.SignalPause)
 			}
+			runner.stop()
 		}()
 
 		t.Logf("Running scenario")
-		errs := testCase.Scenario(testCase.TestConfig, runner)
+		errs := testCase.Scenario(testCase.TestConfig, s)
 
 		for _, err := range errs {
 			t.Error(err)
