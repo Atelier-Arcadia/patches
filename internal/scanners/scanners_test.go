@@ -101,15 +101,20 @@ func TestJobRunner(t *testing.T) {
 				for {
 					select {
 					case <-stream.Vulns:
+						fmt.Println("Test got vuln")
 						vulnsCounted++
 
 					case <-stream.Errors:
+						fmt.Println("Test got error")
 						errsCounted++
 
 					case <-stream.Finished:
+						fmt.Println("Test got finished")
 						errs = append(errs, fmt.Errorf("Stream finished unexpectedly"))
 
 					case <-finished:
+						fmt.Println("Test told to stop")
+						runner.stop()
 						break top
 					}
 				}
@@ -151,8 +156,10 @@ func TestJobRunner(t *testing.T) {
 		finished := make(chan done.Done, 1)
 
 		finished <- done.Done{}
+		fmt.Println("Signalled test to stop")
 
 		errs := tcase.Fn(tcase.Cfg, runner, finished)
+		fmt.Println("Finished running test case")
 
 		for _, err := range errs {
 			t.Error(err)

@@ -43,13 +43,12 @@ type scheduler struct {
 type stream vulnerability.Job
 
 type jobRunner struct {
-	client     vulnerability.Source
-	pform      platform.Platform
-	signals    <-chan signal
-	isRunning  bool
-	jobRunning bool
-	terminate  chan bool
-	confirm    chan bool
+	client    vulnerability.Source
+	pform     platform.Platform
+	signals   <-chan signal
+	isRunning bool
+	terminate chan bool
+	confirm   chan bool
 }
 
 func newScheduler(freq time.Duration) scheduler {
@@ -68,13 +67,12 @@ func newJobRunner(
 	signals <-chan signal,
 ) jobRunner {
 	return jobRunner{
-		client:     src,
-		pform:      pform,
-		signals:    signals,
-		isRunning:  false,
-		jobRunning: false,
-		terminate:  make(chan bool, 1),
-		confirm:    make(chan bool, 1),
+		client:    src,
+		pform:     pform,
+		signals:   signals,
+		isRunning: false,
+		terminate: make(chan bool, 1),
+		confirm:   make(chan bool, 1),
 	}
 }
 
@@ -99,7 +97,7 @@ func (sched *scheduler) start() error {
 
 func (sched *scheduler) stop() error {
 	if !sched.isStarted {
-		return fmt.Errorf("Scheduler is not stopped")
+		return fmt.Errorf("Scheduler is not running")
 	}
 
 	sched.terminate <- true
@@ -112,16 +110,26 @@ func (sched *scheduler) stop() error {
 func (runner *jobRunner) start() stream {
 	s := stream{
 		Vulns:    make(chan vulnerability.Vulnerability),
-		Finished: make(chan done.Done),
+		Finished: make(chan done.Done, 1),
 		Errors:   make(chan error),
 	}
 
 	go __stream(&s, runner)
 
+	runner.isRunning = true
 	return s
 }
 
-func (runner jobRunner) stop() {
+func (runner jobRunner) stop() error {
+	if !runner.isRunning {
+		return fmt.Errorf("JobRunner is not running")
+	}
+
+	runner.terminate <- true
+	<-runner.confirm
+
+	runner.isRunning = false
+	return nil
 }
 
 func __runClock(s *scheduler) {
@@ -141,4 +149,66 @@ clock:
 }
 
 func __stream(s *stream, runner *jobRunner) {
+	jobRunning := false
+	jobFinished := make(chan bool)
+	killJob := make(chan bool)
+	confirmKilled := make(chan bool)
+
+stream:
+	for {
+		select {
+		case <-runner.signals:
+			fmt.Println("jobRunner got a signal to run a job")
+			if !jobRunning {
+				job := runner.client.Vulnerabilities(runner.pform)
+				go __runJob(s, job, jobFinished, killJob, confirmKilled)
+				jobRunning = true
+			}
+
+		case <-jobFinished:
+			fmt.Println("jobRunner told taht current job is finished")
+			jobRunning = false
+
+		case <-runner.terminate:
+			fmt.Println("jobRunner got terminate")
+			if jobRunning {
+				killJob <- true
+				<-confirmKilled
+			}
+			s.Finished <- done.Done{}
+			runner.confirm <- true
+			break stream
+		}
+	}
+}
+
+func __runJob(
+	s *stream,
+	job vulnerability.Job,
+	jobFinished chan<- bool,
+	kill <-chan bool,
+	confirm chan<- bool,
+) {
+job:
+	for {
+		select {
+		case vuln := <-job.Vulns:
+			fmt.Println("job produed a vuln")
+			s.Vulns <- vuln
+
+		case err := <-job.Errors:
+			fmt.Println("job produced an error")
+			s.Errors <- err
+
+		case <-job.Finished:
+			fmt.Println("job is finished")
+			jobFinished <- true
+			break job
+
+		case <-kill:
+			fmt.Println("runJob got kill")
+			confirm <- true
+			break job
+		}
+	}
 }
