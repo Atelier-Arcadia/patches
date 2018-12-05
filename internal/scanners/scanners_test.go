@@ -3,7 +3,6 @@ package scanners
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/platform"
@@ -16,39 +15,6 @@ type mockSource struct {
 }
 
 func TestScheduler(t *testing.T) {
-	ticks := make(chan bool, 5)
-	schedule := newScheduler(100*time.Millisecond, ticks)
-
-	if err := schedule.stop(); err == nil {
-		t.Errorf("Should not be able to stop a scheduler that has not been started")
-	}
-	if err := schedule.start(); err != nil {
-		t.Error(err)
-	}
-	if err := schedule.start(); err == nil {
-		t.Errorf("Should not be able to start a scheduler twice")
-	}
-	<-time.After(350 * time.Millisecond)
-	if err := schedule.stop(); err != nil {
-		t.Error(err)
-	}
-	if err := schedule.stop(); err == nil {
-		t.Errorf("Should not be able to stop a scheduler twice")
-	}
-
-	ticksReceived := 0
-	for ticksReceived < 3 {
-		<-ticks
-		ticksReceived++
-	}
-
-	select {
-	case <-ticks:
-		t.Errorf("Schedule should not send any more ticks after being stopped")
-
-	default:
-		break
-	}
 }
 
 func TestJobRunner(t *testing.T) {

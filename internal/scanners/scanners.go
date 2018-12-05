@@ -1,11 +1,7 @@
 package scanners
 
 import (
-	"errors"
-	"fmt"
 	"time"
-
-	log "github.com/Sirupsen/logrus"
 
 	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/pack"
@@ -31,10 +27,10 @@ type Agent struct {
 	Findings      chan<- pack.Package
 }
 
+type signal bool
+
 type scheduler struct {
 	schedule limit.RateLimiter
-	ticks    chan<- bool
-	started  bool
 }
 
 // Re-use the Job structure as the output from jobRunner.
@@ -42,32 +38,13 @@ type scheduler struct {
 type stream vulnerability.Job
 
 type jobRunner struct {
-	queued      uint
-	jobFinished bool
-	client      vulnerability.Source
-	pform       platform.Platform
-	runSignal   <-chan bool
+	client vulnerability.Source
+	pform  platform.Platform
 }
 
-func newScheduler(freq time.Duration, out chan<- bool) scheduler {
+func newScheduler(freq time.Duration) scheduler {
 	return scheduler{
-		limit.ConstantRateLimiter(freq),
-		out,
-		false,
-	}
-}
-
-func newJobRunner(
-	source vulnerability.Source,
-	pform platform.Platform,
-	signal <-chan bool,
-) jobRunner {
-	return jobRunner{
-		queued:      0,
-		jobFinished: true,
-		client:      source,
-		pform:       pform,
-		runSignal:   signal,
+		schedule: limit.ConstantRateLimiter(freq),
 	}
 }
 
