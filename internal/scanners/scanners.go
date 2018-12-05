@@ -31,6 +31,7 @@ type signal bool
 
 type scheduler struct {
 	schedule limit.RateLimiter
+	ticks    chan signal
 }
 
 // Re-use the Job structure as the output from jobRunner.
@@ -50,6 +51,10 @@ func newScheduler(freq time.Duration) scheduler {
 
 // Run starts an Agent process of periodically scanning
 func (agent Agent) Run() {
+}
+
+func (sched *scheduler) clock() <-chan signal {
+	return sched.ticks
 }
 
 func (sched *scheduler) start() error {
