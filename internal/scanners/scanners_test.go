@@ -80,7 +80,7 @@ func TestJobRunner(t *testing.T) {
 	type testCase struct {
 		Desc string
 		Cfg  config
-		Fn   func(config, jobRunner, <-chan done.Done) []error
+		Fn   func(uint, uint, config) []error
 	}
 
 	testCases := []testCase{
@@ -91,33 +91,8 @@ func TestJobRunner(t *testing.T) {
 				VulnsToGen:    3,
 				ErrsToGen:     2,
 			},
-			Fn: func(cfg config, runner jobRunner, finished <-chan done.Done) []error {
-				var vulnsCounted uint = 0
-				var errsCounted uint = 0
+			Fn: func(vulnsCounted, errsCounted uint, cfg config) []error {
 				errs := []error{}
-				stream := runner.start()
-
-			top:
-				for {
-					select {
-					case <-stream.Vulns:
-						fmt.Println("Test got vuln")
-						vulnsCounted++
-
-					case <-stream.Errors:
-						fmt.Println("Test got error")
-						errsCounted++
-
-					case <-stream.Finished:
-						fmt.Println("Test got finished")
-						errs = append(errs, fmt.Errorf("Stream finished unexpectedly"))
-
-					case <-finished:
-						fmt.Println("Test told to stop")
-						runner.stop()
-						break top
-					}
-				}
 
 				if vulnsCounted != cfg.VulnsToGen {
 					errs = append(errs, fmt.Errorf(
@@ -135,14 +110,47 @@ func TestJobRunner(t *testing.T) {
 				return errs
 			},
 		},
-		/*
-			{
-				Desc: "Should read everything written by multiple jobs",
+		{
+			Desc: "Should read everything written by multiple jobs",
+			Cfg: config{
+				TimesToSignal: 4,
+				SignalPause:   1 * time.Second,
+				VulnsToGen:    2,
+				ErrsToGen:     1,
 			},
-			{
-				Desc: "Should only read values when a job is running",
+			Fn: func(vulnsCounted, errsCounted uint, cfg config) []error {
+				errs := []error{}
+
+				expected := cfg.VulnsToGen * cfg.TimesToSignal
+				if vulnsCounted != expected {
+					errs = append(errs, fmt.Errorf(
+						"Expected to get %d vulns, but only got %d",
+						cfg.VulnsToGen,
+						vulnsCounted))
+				}
+				expected = cfg.ErrsToGen * cfg.TimesToSignal
+				if errsCounted != cfg.ErrsToGen*cfg.TimesToSignal {
+					errs = append(errs, fmt.Errorf(
+						"Expected to get %d errrs, but only got %d",
+						cfg.ErrsToGen,
+						errsCounted))
+				}
+
+				return errs
 			},
-		*/
+		},
+		{
+			Desc: "Should only read values when a job is running",
+			Cfg: config{
+				TimesToSignal: 2,
+				SignalPause:   2 * time.Second,
+				VulnsToGen:    2,
+				ErrsToGen:     1,
+			},
+			Fn: func(vulnsCounted, errsCounted uint, cfg config) []error {
+				return []error{}
+			},
+		},
 	}
 
 	for caseNum, tcase := range testCases {
@@ -165,10 +173,37 @@ func TestJobRunner(t *testing.T) {
 			finished <- done.Done{}
 		}()
 
-		errs := tcase.Fn(tcase.Cfg, runner, finished)
+		var vulnsCounted uint = 0
+		var errsCounted uint = 0
+		errs := []error{}
+		stream := runner.start()
+
+	top:
+		for {
+			select {
+			case <-stream.Vulns:
+				fmt.Println("Test got vuln")
+				vulnsCounted++
+
+			case <-stream.Errors:
+				fmt.Println("Test got error")
+				errsCounted++
+
+			case <-stream.Finished:
+				fmt.Println("Test got finished")
+				errs = append(errs, fmt.Errorf("Stream finished unexpectedly"))
+
+			case <-finished:
+				fmt.Println("Test told to stop")
+				runner.stop()
+				break top
+			}
+		}
+
+		encounteredErrs := tcase.Fn(vulnsCounted, errsCounted, tcase.Cfg)
 		fmt.Println("Finished running test case")
 
-		for _, err := range errs {
+		for _, err := range encounteredErrs {
 			t.Error(err)
 		}
 	}
