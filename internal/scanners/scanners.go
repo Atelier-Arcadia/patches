@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -177,22 +178,28 @@ func (runner *jobRunner) start() stream {
 }
 
 func (runner jobRunner) stop() {
+	log.Debugf("Stopping runner")
+	fmt.Println("Stopping runner")
 	runner.killSignal.Terminate()
-	log.Debugf("Stopped")
+	fmt.Println("Stopped")
 }
 
 func __stream(s *stream, runner *jobRunner) {
 	killSignal := __handleKillSignal(runner.killSignal)
+	repeat := make(chan done.Done, 1)
 
 top:
 	for {
 		select {
 		case <-runner.runSignal:
 			log.Debugf("stream got run signal")
-			__handleSignal(s, runner, killSignal)
+			fmt.Println("stream got run signal")
+			__handleSignal(s, runner, repeat)
 
 		case <-killSignal:
 			log.Debugf("stream got kill signal")
+			fmt.Println("stream got kill signal")
+			repeat <- done.Done{}
 			break top
 		}
 	}
@@ -206,6 +213,7 @@ func __handleKillSignal(cancel Cancel) chan done.Done {
 			<-time.After(100 * time.Millisecond)
 			if cancel.Check() {
 				log.Debugf("Got kill signal")
+				fmt.Println("Got kill signal")
 				signal <- done.Done{}
 				return
 			}
@@ -215,7 +223,7 @@ func __handleKillSignal(cancel Cancel) chan done.Done {
 	return signal
 }
 
-func __handleSignal(s *stream, runner *jobRunner, killSignal chan done.Done) {
+func __handleSignal(s *stream, runner *jobRunner, killSignal <-chan done.Done) {
 	if !runner.jobFinished {
 		log.Debugf("Queuing a job")
 		runner.queued++
@@ -223,6 +231,7 @@ func __handleSignal(s *stream, runner *jobRunner, killSignal chan done.Done) {
 	}
 
 	log.Debugf("Starting a job")
+	fmt.Println("Starting a job")
 	job := runner.client.Vulnerabilities(runner.pform)
 	runner.jobFinished = false
 
@@ -236,6 +245,8 @@ func __handleSignal(s *stream, runner *jobRunner, killSignal chan done.Done) {
 
 			case <-job.Finished:
 				runner.jobFinished = true
+				s.Finished <- done.Done{}
+				break top
 
 			case err := <-job.Errors:
 				log.Debugf("Got an error '%s'", err.Error())
@@ -243,7 +254,8 @@ func __handleSignal(s *stream, runner *jobRunner, killSignal chan done.Done) {
 
 			case <-killSignal:
 				log.Debugf("handleSignal: kill signal recv")
-				killSignal <- done.Done{}
+				fmt.Println("handleSignal: kill signal recv")
+				s.Finished <- done.Done{}
 				break top
 			}
 		}
