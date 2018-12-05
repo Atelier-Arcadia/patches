@@ -12,23 +12,7 @@ import (
 
 type mockSource struct {
 	numVulns uint
-}
-
-func TestCancel(t *testing.T) {
-	cancel := NewCancel()
-	go func() {
-		for !cancel.Check() {
-			<-time.After(50 * time.Millisecond)
-		}
-		if err := cancel.Confirm(); err != nil {
-			t.Error(err)
-		}
-	}()
-	cancel.Terminate()
-
-	if err := cancel.Confirm(); err == nil {
-		t.Errorf("Expected a second call to Cancel.Confirm to return an error")
-	}
+	numErrs  uint
 }
 
 func TestScheduler(t *testing.T) {
@@ -68,198 +52,6 @@ func TestScheduler(t *testing.T) {
 }
 
 func TestJobRunner(t *testing.T) {
-	type config struct {
-		TimesToSignal   uint
-		SignalPause     time.Duration
-		VulnsToProduce  uint
-		ErrorsToProduce uint
-	}
-
-	testCases := []struct {
-		Description string
-		TestConfig  config
-		Scenario    func(config, stream) []error
-	}{
-		{
-			Description: "Should stream out all vulnerabilities received",
-			TestConfig: config{
-				TimesToSignal:   1,
-				VulnsToProduce:  13,
-				ErrorsToProduce: 0,
-			},
-			Scenario: func(cfg config, s stream) []error {
-				errs := []error{}
-
-				var vulnsReceived uint = 0
-			readall:
-				for {
-					select {
-					case <-s.Vulns:
-						vulnsReceived++
-
-					case <-s.Finished:
-						break readall
-					}
-				}
-
-				if vulnsReceived != cfg.VulnsToProduce {
-					errs = append(errs, fmt.Errorf(
-						"Expected %d vulns, got %d",
-						cfg.VulnsToProduce,
-						vulnsReceived))
-				}
-
-				return errs
-			},
-		},
-		{
-			Description: "Should stream out all errors received",
-			TestConfig: config{
-				TimesToSignal:   1,
-				VulnsToProduce:  0,
-				ErrorsToProduce: 5,
-			},
-			Scenario: func(cfg config, s stream) []error {
-				errs := []error{}
-
-				var errsReceived uint = 0
-			readall:
-				for {
-					select {
-					case <-s.Errors:
-						errsReceived++
-
-					case <-s.Finished:
-						break readall
-					}
-				}
-
-				if errsReceived != cfg.ErrorsToProduce {
-					errs = append(errs, fmt.Errorf(
-						"Expected %d errors, got %d",
-						cfg.ErrorsToProduce,
-						errsReceived))
-				}
-
-				return errs
-			},
-		},
-		{
-			Description: "Should stream out everything received after multiple signals",
-			TestConfig: config{
-				TimesToSignal:   4,
-				VulnsToProduce:  2,
-				ErrorsToProduce: 1,
-				SignalPause:     50 * time.Millisecond,
-			},
-			Scenario: func(cfg config, s stream) []error {
-				errs := []error{}
-
-				var vulnsReceived uint = 0
-				var errsReceived uint = 0
-			readall:
-				for {
-					select {
-					case <-s.Vulns:
-						vulnsReceived++
-
-					case <-s.Errors:
-						errsReceived++
-
-					case <-s.Finished:
-						break readall
-					}
-				}
-
-				expected := cfg.VulnsToProduce * cfg.TimesToSignal
-				if vulnsReceived != expected {
-					errs = append(errs, fmt.Errorf(
-						"Expected %d vulns, got %d",
-						expected,
-						vulnsReceived))
-				}
-
-				expected = cfg.ErrorsToProduce * cfg.TimesToSignal
-				if errsReceived != expected {
-					errs = append(errs, fmt.Errorf(
-						"Expected %d errors, got %d",
-						expected,
-						errsReceived))
-				}
-
-				return errs
-			},
-		},
-		{
-			Description: "Should only stream vulns when signal is sent",
-			TestConfig: config{
-				TimesToSignal:   2,
-				VulnsToProduce:  1,
-				ErrorsToProduce: 0,
-				SignalPause:     2 * time.Second,
-			},
-			Scenario: func(cfg config, s stream) []error {
-				errs := []error{}
-
-				<-time.After(100 * time.Millisecond)
-				select {
-				case <-s.Vulns:
-					break
-
-				case <-s.Finished:
-					errs = append(errs, fmt.Errorf("unexpectedly finished"))
-
-				case <-s.Errors:
-					errs = append(errs, fmt.Errorf("got an error when none was expected"))
-				}
-
-				select {
-				case <-s.Vulns:
-					errs = append(errs, fmt.Errorf("unexpectedly got a second vuln early"))
-
-				case <-s.Finished:
-					errs = append(errs, fmt.Errorf("unexpectedly finished 2"))
-
-				case <-s.Errors:
-					errs = append(errs, fmt.Errorf("got an error when none was expected 2"))
-
-				default:
-					break
-				}
-
-				return errs
-			},
-		},
-	}
-
-	for caseNum, testCase := range testCases {
-		t.Logf("Running TestJobRunner case #%d: %s", caseNum, testCase.Description)
-
-		signal := make(chan bool)
-		runner := newJobRunner(
-			mockSource{testCase.TestConfig.VulnsToProduce},
-			platform.Debian8,
-			signal)
-		s := runner.start()
-
-		go func() {
-			var i uint
-			for i = 0; i < testCase.TestConfig.TimesToSignal; i++ {
-				signal <- true
-				t.Logf("TICK")
-				<-time.After(testCase.TestConfig.SignalPause)
-			}
-		}()
-
-		t.Logf("Running scenario")
-		errs := testCase.Scenario(testCase.TestConfig, s)
-
-		for _, err := range errs {
-			t.Error(err)
-		}
-
-		runner.stop()
-	}
 }
 
 func (mock mockSource) Vulnerabilities(pform platform.Platform) vulnerability.Job {
@@ -272,6 +64,10 @@ func (mock mockSource) Vulnerabilities(pform platform.Platform) vulnerability.Jo
 		for i = 0; i < mock.numVulns; i++ {
 			vulns <- vulnerability.Vulnerability{}
 			fmt.Println("Wrote a vuln")
+		}
+		for i = 0; i < mock.numErrs; i++ {
+			errors <- fmt.Errorf("")
+			fmt.Println("Wrote an error")
 		}
 		finished <- done.Done{}
 	}()
