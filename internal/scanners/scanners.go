@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/arcrose/patches/pkg/done"
@@ -30,8 +31,11 @@ type Agent struct {
 type signal bool
 
 type scheduler struct {
-	schedule limit.RateLimiter
-	ticks    chan signal
+	schedule  limit.RateLimiter
+	ticks     chan signal
+	isStarted bool
+	terminate chan bool
+	confirm   chan bool
 }
 
 // Re-use the Job structure as the output from jobRunner.
@@ -45,7 +49,11 @@ type jobRunner struct {
 
 func newScheduler(freq time.Duration) scheduler {
 	return scheduler{
-		schedule: limit.ConstantRateLimiter(freq),
+		schedule:  limit.ConstantRateLimiter(freq),
+		ticks:     make(chan signal),
+		isStarted: false,
+		terminate: make(chan bool, 1),
+		confirm:   make(chan bool, 1),
 	}
 }
 
@@ -58,10 +66,25 @@ func (sched *scheduler) clock() <-chan signal {
 }
 
 func (sched *scheduler) start() error {
+	if sched.isStarted {
+		return fmt.Errorf("Scheduler already started")
+	}
+
+	go __runClock(sched)
+
+	sched.isStarted = true
 	return nil
 }
 
 func (sched *scheduler) stop() error {
+	if !sched.isStarted {
+		return fmt.Errorf("Scheduler is not stopped")
+	}
+
+	sched.terminate <- true
+	<-sched.confirm
+
+	sched.isStarted = false
 	return nil
 }
 
@@ -78,6 +101,22 @@ func (runner *jobRunner) start() stream {
 }
 
 func (runner jobRunner) stop() {
+}
+
+func __runClock(s *scheduler) {
+	block := s.schedule
+
+clock:
+	for {
+		select {
+		case <-block():
+			s.ticks <- signal(true)
+
+		case <-s.terminate:
+			s.confirm <- true
+			break clock
+		}
+	}
 }
 
 func __stream(s *stream, runner *jobRunner) {
