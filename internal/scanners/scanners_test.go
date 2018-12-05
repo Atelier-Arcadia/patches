@@ -246,9 +246,9 @@ func TestJobRunner(t *testing.T) {
 			var i uint
 			for i = 0; i < testCase.TestConfig.TimesToSignal; i++ {
 				signal <- true
+				t.Logf("TICK")
 				<-time.After(testCase.TestConfig.SignalPause)
 			}
-			runner.stop()
 		}()
 
 		t.Logf("Running scenario")
@@ -257,6 +257,8 @@ func TestJobRunner(t *testing.T) {
 		for _, err := range errs {
 			t.Error(err)
 		}
+
+		runner.stop()
 	}
 }
 
@@ -269,6 +271,7 @@ func (mock mockSource) Vulnerabilities(pform platform.Platform) vulnerability.Jo
 		var i uint
 		for i = 0; i < mock.numVulns; i++ {
 			vulns <- vulnerability.Vulnerability{}
+			fmt.Println("Wrote a vuln")
 		}
 		finished <- done.Done{}
 	}()

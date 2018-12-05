@@ -200,6 +200,7 @@ top:
 			log.Debugf("stream got kill signal")
 			fmt.Println("stream got kill signal")
 			repeat <- done.Done{}
+			runner.killSignal.Confirm()
 			break top
 		}
 	}
