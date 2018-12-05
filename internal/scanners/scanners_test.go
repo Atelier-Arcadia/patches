@@ -155,8 +155,15 @@ func TestJobRunner(t *testing.T) {
 			signals)
 		finished := make(chan done.Done, 1)
 
-		finished <- done.Done{}
-		fmt.Println("Signalled test to stop")
+		go func() {
+			var i uint
+			for i = 0; i < tcase.Cfg.TimesToSignal; i++ {
+				signals <- signal(true)
+				<-time.After(tcase.Cfg.SignalPause)
+			}
+			<-time.After(500 * time.Millisecond)
+			finished <- done.Done{}
+		}()
 
 		errs := tcase.Fn(tcase.Cfg, runner, finished)
 		fmt.Println("Finished running test case")
