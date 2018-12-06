@@ -126,10 +126,38 @@ var (
 	}
 )
 
+// SuppportedPlatformNames returns an array of strings of names of
+// platforms for which we can retrieve vulnerability information.
+func SuppportedPlatformNames() []string {
+	sup := supported()
+	names := make([]string, len(sup))
+
+	index := 0
+	for name, _ := range sup {
+		names[index] = name
+		index++
+	}
+
+	return names
+}
+
 // Translate converts a platform name into its internal representation.
 // The naming scheme used is: distro-M(.m.p(-.*)?)
 func Translate(name string) (Platform, bool) {
-	supported := map[string]Platform{
+	pform, found := supported()[name]
+	if !found {
+		return Platform{}, false
+	}
+
+	return pform, true
+}
+
+func (p Platform) String() string {
+	return p.distro + "-" + p.version
+}
+
+func supported() map[string]Platform {
+	return map[string]Platform{
 		"centos-5":        CentOS5,
 		"centos-6":        CentOS6,
 		"centos-7":        CentOS7,
@@ -160,15 +188,4 @@ func Translate(name string) (Platform, bool) {
 		"ubuntu-17.10":    Ubuntu17_10,
 		"ubuntu-18.04":    Ubuntu18_04,
 	}
-
-	pform, found := supported[name]
-	if !found {
-		return Platform{}, false
-	}
-
-	return pform, true
-}
-
-func (p Platform) String() string {
-	return p.distro + "-" + p.version
 }

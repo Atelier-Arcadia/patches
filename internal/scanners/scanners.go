@@ -31,6 +31,9 @@ type Agent struct {
 	Findings      chan<- vulnerability.Vulnerability
 }
 
+// NilScanner is a Scanner that does nothing and always returns Notfound.
+type NilScanner interface{}
+
 type signal bool
 
 type scheduler struct {
@@ -52,6 +55,23 @@ type jobRunner struct {
 	isRunning bool
 	terminate chan bool
 	confirm   chan bool
+}
+
+type setupFn func(map[string]interface{}) error
+
+// Lookup attempts to set up a scanner for the desired platform.
+func Lookup(pform platform.Platform, cfg map[string]interface{}) (pack.Scanner, error) {
+	setup, found := supported()[pform]
+	if !found {
+		return NilScanner, fmt.Errorf("Cannot set up a scanner for '%s'", pform.String())
+	}
+
+	scanner, err := setup(cfg)
+	if err != nil {
+		return NilScanner, fmt.Errorf("Failed to set up scanner: '%s'", err.Error())
+	}
+
+	return scanner, nil
 }
 
 func newScheduler(freq time.Duration) scheduler {
@@ -77,6 +97,50 @@ func newJobRunner(
 		terminate: make(chan bool, 1),
 		confirm:   make(chan bool, 1),
 	}
+}
+
+func supported() map[platform.Platform]setupFn {
+	return map[platform.Platform]setupFn{
+		//CentOS5:        setupYum,
+		//CentOS6:        setupYum,
+		//CentOS7:        setupYum,
+		Debian8:        setupDpkg,
+		Debian9:        setupDpkg,
+		Debian10:       setupDpkg,
+		DebianUnstable: setupDpkg,
+		//Alpine3_3:      setupApk,
+		//Alpine3_4:      setupApk,
+		//Alpine3_5:      setupApk,
+		//Alpine3_6:      setupApk,
+		//Alpine3_7:      setupApk,
+		//Alpine3_8:      setupApk,
+		//Oracle5:        setupYum,
+		//Oracle6:        setupYum,
+		//Oracle7:        setupYum,
+		Ubuntu12_04: setupDpkg,
+		Ubuntu12_10: setupDpkg,
+		Ubuntu13_04: setupDpkg,
+		Ubuntu13_10: setupDpkg,
+		Ubuntu14_04: setupDpkg,
+		Ubuntu14_10: setupDpkg,
+		Ubuntu15_04: setupDpkg,
+		Ubuntu15_10: setupDpkg,
+		Ubuntu16_04: setupDpkg,
+		Ubuntu16_10: setupDpkg,
+		Ubuntu17_04: setupDpkg,
+		Ubuntu17_10: setupDpkg,
+		Ubuntu18_04: setupDpkg,
+	}
+}
+
+func setupDpkg(cfg map[string]interface{}) (DPKG, error) {
+	compareFn, ok := cfg["compareFn"].(pack.VersionCompareFunc)
+	if !ok {
+		err := fmt.Errorf("Scanner configuration is missing a valid 'compareFn'")
+		return NilScanner, err
+	}
+
+	return NewDPKG(compareFn), nil
 }
 
 // Run starts an Agent process of periodically scanning for vulnerable
@@ -180,6 +244,10 @@ func (runner jobRunner) stop() error {
 
 	runner.isRunning = false
 	return nil
+}
+
+func (_ NilScanner) Scan(_ pack.Package) (pack.Found, error) {
+	return pack.NotFound, nil
 }
 
 func __runClock(s *scheduler) {
