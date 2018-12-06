@@ -7,12 +7,15 @@ import (
 	"syscall"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/pack"
 	"github.com/arcrose/patches/pkg/platform"
 	"github.com/arcrose/patches/pkg/vulnerability"
 
 	"github.com/arcrose/patches/internal/limit"
+	"github.com/arcrose/patches/internal/scanners/dpkg"
 )
 
 // Agent is a top-level type that contains all of the dependencies required to
@@ -32,7 +35,7 @@ type Agent struct {
 }
 
 // NilScanner is a Scanner that does nothing and always returns Notfound.
-type NilScanner interface{}
+type NilScanner struct{}
 
 type signal bool
 
@@ -57,18 +60,18 @@ type jobRunner struct {
 	confirm   chan bool
 }
 
-type setupFn func(map[string]interface{}) error
+type setupFn func(map[string]interface{}) (pack.Scanner, error)
 
 // Lookup attempts to set up a scanner for the desired platform.
 func Lookup(pform platform.Platform, cfg map[string]interface{}) (pack.Scanner, error) {
 	setup, found := supported()[pform]
 	if !found {
-		return NilScanner, fmt.Errorf("Cannot set up a scanner for '%s'", pform.String())
+		return NilScanner{}, fmt.Errorf("Cannot set up a scanner for '%s'", pform.String())
 	}
 
 	scanner, err := setup(cfg)
 	if err != nil {
-		return NilScanner, fmt.Errorf("Failed to set up scanner: '%s'", err.Error())
+		return NilScanner{}, fmt.Errorf("Failed to set up scanner: '%s'", err.Error())
 	}
 
 	return scanner, nil
@@ -101,46 +104,46 @@ func newJobRunner(
 
 func supported() map[platform.Platform]setupFn {
 	return map[platform.Platform]setupFn{
-		//CentOS5:        setupYum,
-		//CentOS6:        setupYum,
-		//CentOS7:        setupYum,
-		Debian8:        setupDpkg,
-		Debian9:        setupDpkg,
-		Debian10:       setupDpkg,
-		DebianUnstable: setupDpkg,
-		//Alpine3_3:      setupApk,
-		//Alpine3_4:      setupApk,
-		//Alpine3_5:      setupApk,
-		//Alpine3_6:      setupApk,
-		//Alpine3_7:      setupApk,
-		//Alpine3_8:      setupApk,
-		//Oracle5:        setupYum,
-		//Oracle6:        setupYum,
-		//Oracle7:        setupYum,
-		Ubuntu12_04: setupDpkg,
-		Ubuntu12_10: setupDpkg,
-		Ubuntu13_04: setupDpkg,
-		Ubuntu13_10: setupDpkg,
-		Ubuntu14_04: setupDpkg,
-		Ubuntu14_10: setupDpkg,
-		Ubuntu15_04: setupDpkg,
-		Ubuntu15_10: setupDpkg,
-		Ubuntu16_04: setupDpkg,
-		Ubuntu16_10: setupDpkg,
-		Ubuntu17_04: setupDpkg,
-		Ubuntu17_10: setupDpkg,
-		Ubuntu18_04: setupDpkg,
+		//platform.CentOS5:        setupYum,
+		//platform.CentOS6:        setupYum,
+		//platform.CentOS7:        setupYum,
+		platform.Debian8:        setupDpkg,
+		platform.Debian9:        setupDpkg,
+		platform.Debian10:       setupDpkg,
+		platform.DebianUnstable: setupDpkg,
+		//platform.Alpine3_3:      setupApk,
+		//platform.Alpine3_4:      setupApk,
+		//platform.Alpine3_5:      setupApk,
+		//platform.Alpine3_6:      setupApk,
+		//platform.Alpine3_7:      setupApk,
+		//platform.Alpine3_8:      setupApk,
+		//platform.Oracle5:        setupYum,
+		//platform.Oracle6:        setupYum,
+		//platform.Oracle7:        setupYum,
+		platform.Ubuntu12_04: setupDpkg,
+		platform.Ubuntu12_10: setupDpkg,
+		platform.Ubuntu13_04: setupDpkg,
+		platform.Ubuntu13_10: setupDpkg,
+		platform.Ubuntu14_04: setupDpkg,
+		platform.Ubuntu14_10: setupDpkg,
+		platform.Ubuntu15_04: setupDpkg,
+		platform.Ubuntu15_10: setupDpkg,
+		platform.Ubuntu16_04: setupDpkg,
+		platform.Ubuntu16_10: setupDpkg,
+		platform.Ubuntu17_04: setupDpkg,
+		platform.Ubuntu17_10: setupDpkg,
+		platform.Ubuntu18_04: setupDpkg,
 	}
 }
 
-func setupDpkg(cfg map[string]interface{}) (DPKG, error) {
+func setupDpkg(cfg map[string]interface{}) (pack.Scanner, error) {
 	compareFn, ok := cfg["compareFn"].(pack.VersionCompareFunc)
 	if !ok {
 		err := fmt.Errorf("Scanner configuration is missing a valid 'compareFn'")
-		return NilScanner, err
+		return NilScanner{}, err
 	}
 
-	return NewDPKG(compareFn), nil
+	return dpkg.NewDPKG(compareFn), nil
 }
 
 // Run starts an Agent process of periodically scanning for vulnerable
@@ -172,10 +175,14 @@ agent:
 		select {
 		case vuln := <-stream.Vulns:
 			anyFound := false
-			for _, pkg := range vuln.FixedIn {
-				if agent.SystemScanner.Scan(pkg) == pack.WasFound {
+			for _, pkg := range vuln.FixedInPackages {
+				found, err := agent.SystemScanner.Scan(pkg)
+				if found == pack.WasFound {
 					anyFound = true
 					break
+				}
+				if err != nil {
+					log.Debugf("Scanner error: '%s'", err.Error())
 				}
 			}
 			if !anyFound {

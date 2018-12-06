@@ -1,19 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/arcrose/patches/pkg/pack"
 	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
-const testVuln = vulnerability.Vulnerability{
+var testVuln = vulnerability.Vulnerability{
 	Name:                 "testvuln",
 	AffectedPackageName:  "testpackage",
 	AffectedPlatformName: "debian-8",
 	DetailsHref:          "http://test.com",
-	SeverityRating:       vulnerability.SevLow,
+	SeverityRating:       vulnerability.SeverityLow,
 	FixedInPackages: []pack.Package{
 		{
 			Name:    "testpackage",
@@ -44,7 +47,7 @@ func TestReportVulnsToAPI(t *testing.T) {
 	}
 
 	for caseNum, testCase := range testCases {
-		t.Logf("Running TestReportVulnsToAPI case #%d: %s", caseNum, testCase)
+		t.Logf("Running TestReportVulnsToAPI case #%d: %s", caseNum, testCase.Description)
 
 		func() {
 			server := httptest.NewServer(testCase.Handler)
@@ -64,13 +67,16 @@ func TestReportVulnsToAPI(t *testing.T) {
 		counter:
 			for {
 				select {
-				case err := <-errs:
+				case <-errs:
 					errsCounted++
 
 				case <-time.After(1 * time.Second):
 					break counter
 				}
 			}
+
+			terminate <- true
+			<-confirm
 
 			if errsCounted != testCase.ExpectedErrors {
 				t.Errorf("Expected %d errors but only got %d", testCase.ExpectedErrors, errsCounted)
@@ -129,13 +135,13 @@ func validate(res http.ResponseWriter, req *http.Request) {
 
 	decodeErr := decoder.Decode(&decoded)
 	if decodeErr != nil {
-		http.WriteHeader(http.StatusBadRequest)
+		res.WriteHeader(http.StatusBadRequest)
 		res.Write([]byte("fail"))
 		return
 	}
 
 	if !decoded.Equals(testVuln) {
-		http.WriteHeader(http.StatusBadRequest)
+		res.WriteHeader(http.StatusBadRequest)
 		res.Write([]byte("fail"))
 		return
 	}
@@ -144,7 +150,7 @@ func validate(res http.ResponseWriter, req *http.Request) {
 }
 
 func count(expectdVulns uint) http.HandlerFunc {
-	vulnsReceived := 0
+	var vulnsReceived uint = 0
 
 	return func(res http.ResponseWriter, req *http.Request) {
 		if vulnsReceived > expectdVulns {

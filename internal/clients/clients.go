@@ -41,18 +41,18 @@ func NewClairClient(addr string, port uint16, limiter limit.RateLimiter) ClairCl
 }
 
 // Vulnerabilities streams vulnerabilities retrieved from a Patches server.
-func (client ClairClient) Vulnerabilities(pform platform.Platform) (
-	<-chan vulnerability.Vulnerability,
-	<-chan done.Done,
-	<-chan error,
-) {
+func (client ClairClient) Vulnerabilities(pform platform.Platform) vulnerability.Job {
 	vulns := make(chan vulnerability.Vulnerability)
 	finished := make(chan done.Done)
 	errs := make(chan error)
 
 	go __retrieve(client, pform, vulns, finished, errs)
 
-	return vulns, finished, errs
+	return vulnerability.Job{
+		Vulns:    vulns,
+		Finished: finished,
+		Errors:   errs,
+	}
 }
 
 func __retrieve(

@@ -1,10 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
+	"os"
 	"strings"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/arcrose/patches/pkg/pack"
 	"github.com/arcrose/patches/pkg/platform"
@@ -12,6 +18,7 @@ import (
 
 	"github.com/arcrose/patches/internal/clients"
 	"github.com/arcrose/patches/internal/limit"
+	"github.com/arcrose/patches/internal/scanners"
 )
 
 func main() {
@@ -55,8 +62,8 @@ func main() {
 		return
 	}
 
-	rateLimiter := limit.NewConstantRateLimiter(200 * time.Millisecond)
-	server := clients.NewClairClient(*serverAddr, *serverPort, rateLimiter)
+	rateLimiter := limit.ConstantRateLimiter(200 * time.Millisecond)
+	server := clients.NewClairClient(*serverAddr, uint16(*serverPort), rateLimiter)
 
 	chosenPlatform, found := platform.Translate(*platformName)
 	if !found {
@@ -72,12 +79,33 @@ func main() {
 		return
 	}
 
-	reportAPI := __reportVulnsToAPI(vulnsAPI)
+	killReporter := make(chan bool, 2)
+	confirmReporterKilled := make(chan bool, 2)
+	reportAPI, errs := __reportVulnsToAPI(*vulnsAPI, killReporter, confirmReporterKilled)
+	defer func() {
+		killReporter <- true
+		killReporter <- true
+		<-confirmReporterKilled
+		<-confirmReporterKilled
+	}()
+	go func() {
+	errorlogger:
+		for {
+			select {
+			case err := <-errs:
+				log.Error(err)
+
+			case <-killReporter:
+				confirmReporterKilled <- true
+				break errorlogger
+			}
+		}
+	}()
 
 	agent := scanners.Agent{
 		VulnSource:    server,
 		Platform:      chosenPlatform,
-		ScanFrequency: *scanFreq * time.Minute,
+		ScanFrequency: time.Duration(*scanFreq) * time.Minute,
 		SystemScanner: scanner,
 		Findings:      reportAPI,
 	}
@@ -88,17 +116,12 @@ func main() {
 func usage() {
 	out := flag.CommandLine.Output()
 	supportedPlatformNames := strings.Join(platform.SuppportedPlatformNames(), ", ")
-	supportedReporterNames := strings.Join(supportedReporterNames(), ", ")
 
 	flag.PrintDefaults()
 	fmt.Fprintf(
 		out,
 		"Supported platforms: %s\n",
 		supportedPlatformNames)
-	fmt.Fprintf(
-		out,
-		"Supported reporters: %s\n",
-		supportedReporterNames)
 }
 
 //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //
@@ -125,7 +148,7 @@ func __reportVulnsToAPI(
 		for {
 			select {
 			case vuln := <-vulns:
-				__report(vuln, errs)
+				go __report(endpt, vuln, errs)
 
 			case <-terminate:
 				confirm <- true
