@@ -48,17 +48,17 @@ func main() {
 	flag.Parse()
 
 	if *serverAddr == "" {
-		fmt.Fprintf(os.Stderr, "Missing required parameter 'server-address'\n")
+		log.Errorf("Missing required parameter 'server-address'")
 		return
 	}
 
 	if *platformName == "" {
-		fmt.Fprintf(os.Stderr, "Missing required parameter 'platform'\n")
+		log.Errorf("Missing required parameter 'platform'")
 		return
 	}
 
 	if *vulnsAPI == "" {
-		fmt.Fprintf(os.Stderr, "Missing required parameter 'vulnerability-api'")
+		log.Errorf("Missing required parameter 'vulnerability-api'")
 		return
 	}
 
@@ -67,7 +67,7 @@ func main() {
 
 	chosenPlatform, found := platform.Translate(*platformName)
 	if !found {
-		fmt.Fprintf(os.Stderr, "Unsupported platform '%s'\n", *platformName)
+		log.Errorf("Unsupported platform '%s'", *platformName)
 		return
 	}
 
@@ -75,7 +75,7 @@ func main() {
 		"compareFn": pack.VersionIsPrefix,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unsupported platform or invalid config: '%s'", err.Error())
+		log.Errorf("Unsupported platform or invalid config: '%s'", err.Error())
 		return
 	}
 
