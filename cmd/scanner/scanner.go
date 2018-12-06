@@ -79,9 +79,11 @@ func main() {
 		return
 	}
 
+	// This code should die sometime soon.
+	// START
 	killReporter := make(chan bool, 2)
 	confirmReporterKilled := make(chan bool, 2)
-	reportAPI, errs := __reportVulnsToAPI(*vulnsAPI, killReporter, confirmReporterKilled)
+	reportToAPI, errs := __reportVulnsToAPI(*vulnsAPI, killReporter, confirmReporterKilled)
 	defer func() {
 		killReporter <- true
 		killReporter <- true
@@ -101,13 +103,15 @@ func main() {
 			}
 		}
 	}()
+	// This code should die sometime soon.
+	// END
 
 	agent := scanners.Agent{
 		VulnSource:    server,
 		Platform:      chosenPlatform,
 		ScanFrequency: time.Duration(*scanFreq) * time.Minute,
 		SystemScanner: scanner,
-		Findings:      reportAPI,
+		Findings:      reportToAPI,
 	}
 
 	agent.Run()
