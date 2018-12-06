@@ -6,7 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arcrose/patches/pkg/pack"
 	"github.com/arcrose/patches/pkg/platform"
+	"github.com/arcrose/patches/pkg/vulnerability"
 
 	"github.com/arcrose/patches/internal/clients"
 	"github.com/arcrose/patches/internal/limit"
@@ -99,8 +101,64 @@ func usage() {
 		supportedReporterNames)
 }
 
-func __reportVulnsToAPI(endpt string) chan<- vulnerability.Vulnerability {
-	vulns := make(chan vulnerability.Vulnerability)
+//  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //
+//////////////////////////////////////////////////////////////////////
+// At some point we'll want to abstract this kind of functionality  //
+// out so that users can opt into reporting vulnerabilities to      //
+// other places.                                                    //
+//////////////////////////////////////////////////////////////////////
+//  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //
 
-	return vulns
+func __reportVulnsToAPI(
+	endpt string,
+	terminate <-chan bool,
+	confirm chan<- bool,
+) (
+	chan<- vulnerability.Vulnerability,
+	<-chan error,
+) {
+	vulns := make(chan vulnerability.Vulnerability)
+	errs := make(chan error)
+
+	go func() {
+	reporting:
+		for {
+			select {
+			case vuln := <-vulns:
+				__report(vuln, errs)
+
+			case <-terminate:
+				confirm <- true
+				break reporting
+			}
+		}
+	}()
+
+	return vulns, errs
+}
+
+func __report(
+	endpt string,
+	vuln vulnerability.Vulnerability,
+	errs chan<- error,
+) {
+	encoded, err := json.Marshal(vuln)
+	if err != nil {
+		errs <- err
+		return
+	}
+
+	resp, err := http.Post(endpt, "application/json", bytes.NewReader(encoded))
+	if err != nil {
+		errs <- err
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		err := fmt.Errorf(
+			"Vulnerability reporter got status code %d from API",
+			resp.StatusCode)
+		errs <- err
+		return
+	}
 }
