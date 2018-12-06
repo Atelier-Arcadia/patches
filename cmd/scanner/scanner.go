@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
