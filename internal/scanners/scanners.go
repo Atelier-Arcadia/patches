@@ -2,6 +2,9 @@ package scanners
 
 import (
 	"fmt"
+	"os"
+	ossignal "os/signal"
+	"syscall"
 	"time"
 
 	"github.com/arcrose/patches/pkg/done"
@@ -25,7 +28,7 @@ type Agent struct {
 	Platform      platform.Platform
 	ScanFrequency time.Duration
 	SystemScanner pack.Scanner
-	Findings      chan<- pack.Package
+	Findings      chan<- vulnerability.Vulnerability
 }
 
 type signal bool
@@ -76,8 +79,55 @@ func newJobRunner(
 	}
 }
 
-// Run starts an Agent process of periodically scanning
+// Run starts an Agent process of periodically scanning for vulnerable
+// packages pulled from a source.
 func (agent Agent) Run() {
+	sched := newScheduler(agent.ScanFrequency)
+	runner := newJobRunner(
+		agent.VulnSource,
+		agent.Platform,
+		sched.clock())
+	stream := runner.start()
+
+	// Stop everything when the agent process exits
+	defer func() {
+		sched.stop()
+		runner.stop()
+	}()
+
+	sigChan := make(chan os.Signal, 1)
+	ossignal.Notify(
+		sigChan,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
+agent:
+	for {
+		select {
+		case vuln := <-stream.Vulns:
+			anyFound := false
+			for _, pkg := range vuln.FixedIn {
+				if agent.SystemScanner.Scan(pkg) == pack.WasFound {
+					anyFound = true
+					break
+				}
+			}
+			if !anyFound {
+				agent.Findings <- vuln
+			}
+
+		case err := <-stream.Errors:
+			log.Error(err)
+
+		case <-stream.Finished:
+			break agent
+
+		case <-sigChan:
+			break agent
+		}
+	}
 }
 
 func (sched *scheduler) clock() <-chan signal {
