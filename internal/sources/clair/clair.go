@@ -213,11 +213,12 @@ func __collect(
 		return
 	}
 
-	ext := fmt.Sprintf(vulnSummariesWithoutPageEndptFmt, pform)
+	pformName := translateName(pform)
+	ext := fmt.Sprintf(vulnSummariesWithoutPageEndptFmt, pformName)
 	nextPage := __getSummaries(base, ext, summaries, errs)
 	for nextPage != "" {
 		<-block()
-		ext = fmt.Sprintf(vulnSummariesWithPageEndptFmt, pform, nextPage)
+		ext = fmt.Sprintf(vulnSummariesWithPageEndptFmt, pformName, nextPage)
 		nextPage = __getSummaries(base, ext, summaries, errs)
 	}
 	finished <- done.Done{}
@@ -242,8 +243,9 @@ func __describe(
 		return
 	}
 
+	pformName := translateName(pform)
 	name := strings.Split(vulnName, " ")[0]
-	ext := fmt.Sprintf(vulnDescriptionEndptFmt, pform, name)
+	ext := fmt.Sprintf(vulnDescriptionEndptFmt, pformName, name)
 	endpt, _ := url.Parse(ext)
 	toReq := base.ResolveReference(endpt)
 
