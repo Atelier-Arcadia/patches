@@ -70,95 +70,46 @@ func TestScheduler(t *testing.T) {
 }
 
 func TestJobRunner(t *testing.T) {
-	type config struct {
+	testCases := []struct {
+		Description   string
 		TimesToSignal uint
 		SignalPause   time.Duration
 		VulnsToGen    uint
 		ErrsToGen     uint
-	}
-
-	type testCase struct {
-		Desc string
-		Cfg  config
-		Fn   func(uint, uint, config) []error
-	}
-
-	testCases := []testCase{
+	}{
 		{
-			Desc: "Should read all of the vulns and errors produced by the runner",
-			Cfg: config{
-				TimesToSignal: 1,
-				VulnsToGen:    3,
-				ErrsToGen:     2,
-			},
-			Fn: func(vulnsCounted, errsCounted uint, cfg config) []error {
-				errs := []error{}
-
-				if vulnsCounted != cfg.VulnsToGen {
-					errs = append(errs, fmt.Errorf(
-						"Expected to get %d vulns, but only got %d",
-						cfg.VulnsToGen,
-						vulnsCounted))
-				}
-				if errsCounted != cfg.ErrsToGen {
-					errs = append(errs, fmt.Errorf(
-						"Expected to get %d errrs, but only got %d",
-						cfg.ErrsToGen,
-						errsCounted))
-				}
-
-				return errs
-			},
+			Description:   "Should read all of the vulns and errors produced by the runner",
+			TimesToSignal: 1,
+			SignalPause:   1 * time.Second,
+			VulnsToGen:    3,
+			ErrsToGen:     2,
 		},
 		{
-			Desc: "Should read everything written by multiple jobs",
-			Cfg: config{
-				TimesToSignal: 4,
-				SignalPause:   1 * time.Second,
-				VulnsToGen:    2,
-				ErrsToGen:     1,
-			},
-			Fn: func(vulnsCounted, errsCounted uint, cfg config) []error {
-				errs := []error{}
-
-				expected := cfg.VulnsToGen * cfg.TimesToSignal
-				if vulnsCounted != expected {
-					errs = append(errs, fmt.Errorf(
-						"Expected to get %d vulns, but only got %d",
-						cfg.VulnsToGen,
-						vulnsCounted))
-				}
-				expected = cfg.ErrsToGen * cfg.TimesToSignal
-				if errsCounted != cfg.ErrsToGen*cfg.TimesToSignal {
-					errs = append(errs, fmt.Errorf(
-						"Expected to get %d errrs, but only got %d",
-						cfg.ErrsToGen,
-						errsCounted))
-				}
-
-				return errs
-			},
+			Description:   "Should read everything written by multiple jobs",
+			TimesToSignal: 4,
+			SignalPause:   1 * time.Second,
+			VulnsToGen:    2,
+			ErrsToGen:     1,
 		},
 	}
 
 	for caseNum, tcase := range testCases {
-		t.Logf("Running TestJobRunner case #%d: %s", caseNum, tcase.Desc)
+		t.Logf("Running TestJobRunner case #%d: %s", caseNum, tcase.Description)
 
-		signals := make(chan signal, tcase.Cfg.TimesToSignal)
+		signals := make(chan signal, tcase.TimesToSignal)
 		runner := newJobRunner(
-			mockSource{tcase.Cfg.VulnsToGen, tcase.Cfg.ErrsToGen},
+			mockSource{tcase.VulnsToGen, tcase.ErrsToGen},
 			platform.Debian8,
 			signals)
-		finished := make(chan done.Done, 1)
 
+		finished := make(chan bool, 1)
 		go func() {
 			var i uint
-			for i = 0; i < tcase.Cfg.TimesToSignal; i++ {
+			for i = 0; i < tcase.TimesToSignal; i++ {
 				signals <- signal(true)
-				<-time.After(tcase.Cfg.SignalPause)
+				<-time.After(tcase.SignalPause)
 			}
-			<-time.After(500 * time.Millisecond)
-			finished <- done.Done{}
+			finished <- true
 		}()
 
 		var vulnsCounted uint = 0
@@ -175,26 +126,36 @@ func TestJobRunner(t *testing.T) {
 			case <-stream.Errors:
 				errsCounted++
 
-			case <-stream.Finished:
-				errs = append(errs, fmt.Errorf("Stream finished unexpectedly"))
-
 			case <-finished:
 				runner.stop()
 				break top
 			}
 		}
 
-		encounteredErrs := tcase.Fn(vulnsCounted, errsCounted, tcase.Cfg)
+		expected := tcase.VulnsToGen * tcase.TimesToSignal
+		if vulnsCounted != expected {
+			errs = append(errs, fmt.Errorf(
+				"Expected to get %d vulns, but only got %d",
+				expected,
+				vulnsCounted))
+		}
+		expected = tcase.ErrsToGen * tcase.TimesToSignal
+		if errsCounted != expected {
+			errs = append(errs, fmt.Errorf(
+				"Expected to get %d errs, but only got %d",
+				expected,
+				errsCounted))
+		}
 
-		for _, err := range encounteredErrs {
+		for _, err := range errs {
 			t.Error(err)
 		}
 	}
 }
 
 func (mock mockSource) Vulnerabilities(pform platform.Platform) vulnerability.Job {
-	vulns := make(chan vulnerability.Vulnerability, mock.numVulns)
-	finished := make(chan done.Done, 1)
+	vulns := make(chan vulnerability.Vulnerability)
+	finished := make(chan done.Done)
 	errors := make(chan error)
 
 	go func() {
