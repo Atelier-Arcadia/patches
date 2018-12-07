@@ -17,3 +17,6 @@ build-server:
 
 build-scanner:
 	go build -o patchesscanner. ./cmd/scanner
+
+docker-image:
+	docker build -t patches .
