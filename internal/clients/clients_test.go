@@ -90,20 +90,20 @@ func TestClairClientVulnerabilities(t *testing.T) {
 				uint16(serverPort),
 				limiter)
 
-			vulns, fin, errs := client.Vulnerabilities(platform.Debian8)
+			job := client.Vulnerabilities(platform.Debian8)
 			var err error
 			allVulns := []vulnerability.Vulnerability{}
 
 		readall:
 			for {
 				select {
-				case v := <-vulns:
+				case v := <-job.Vulns:
 					allVulns = append(allVulns, v)
 
-				case <-fin:
+				case <-job.Finished:
 					break readall
 
-				case e := <-errs:
+				case e := <-job.Errors:
 					err = e
 				}
 			}
