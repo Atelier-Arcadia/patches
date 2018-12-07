@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/pack"
@@ -127,7 +128,9 @@ func TestClairVulnServer(t *testing.T) {
 
 		func() {
 			server := httptest.NewServer(
-				NewClairVulnServer(testCase.VulnSource, VulnJobManagerOptions{}))
+				NewClairVulnServer(testCase.VulnSource, VulnJobManagerOptions{
+					ReadTimeout: 5 * time.Second,
+				}))
 			defer server.Close()
 
 			url := server.URL + "/vulns?platform=debian-8"
