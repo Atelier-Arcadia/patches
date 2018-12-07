@@ -13,10 +13,10 @@ install-dependencies:
 	go get github.com/Sirupsen/logrus
 
 build-server:
-	go build -o patchesserver. ./cmd/server
+	go build -o patchesserver ./cmd/server
 
 build-scanner:
-	go build -o patchesscanner. ./cmd/scanner
+	go build -o patchesscanner ./cmd/scanner
 
 docker-image:
 	docker build -t patches .
