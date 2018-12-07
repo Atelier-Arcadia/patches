@@ -1,19 +1,17 @@
-FROM rust:latest
+FROM golang:latest
 
-WORKDIR /patches
+WORKDIR /src/github.com/arcrose/patches/
 
-COPY Cargo.toml .
-COPY Cargo.lock .
+ENV GOPATH /
 
-# Have dependencies cached by building them for the dummy library first.
-COPY docker_dummy.rs .
-RUN cargo build --lib
+COPY cmd/ cmd/
+COPY internal/ internal/
+COPY pkg/ pkg/
+COPY patches.go patches.go
+COPY Makefile Makefile
 
-# Now we move our source code in.
-# After building our image, running tests will not require that we also
-# re-build our dependencies every time.
-COPY src/ src/
+RUN make install-dependencies
+#RUN make unit-test
+RUN make build-server
 
-ENV RUST_BACKTRACE 1
-
-CMD ["cargo", "test", "--features", "integration-test", "--", "--nocapture"]
+CMD ["./patches-server", "-clair", "http://clair:6060"]
