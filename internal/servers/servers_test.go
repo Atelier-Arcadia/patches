@@ -137,27 +137,16 @@ func TestClairVulnServerVulnServing(t *testing.T) {
 		Description       string
 		VulnSource        vulnerability.Source
 		UseRetrievedJobID bool
-		ExpectedResponses []response
+		ExpectError       bool
 	}{
 		{
-			Description: "Should serve all vulns when the right job ID is sent",
+			Description: "Should serve vulns until the stream finishes",
 			VulnSource: mockSource{
 				VulnsPerRequest:  1,
 				RequestsToHandle: 2,
 			},
 			UseRetrievedJobID: true,
-			ExpectedResponses: []response{
-				{
-					Error:           nil,
-					Finished:        false,
-					Vulnerabilities: []vulnerability.Vulnerability{testVuln},
-				},
-				{
-					Error:           nil,
-					Finished:        true,
-					Vulnerabilities: []vulnerability.Vulnerability{testVuln},
-				},
-			},
+			ExpectError:       false,
 		},
 		{
 			Description: "Should serve an error if the vuln stream errors",
@@ -165,14 +154,7 @@ func TestClairVulnServerVulnServing(t *testing.T) {
 				ReturnError: true,
 			},
 			UseRetrievedJobID: true,
-			ExpectedResponses: []response{
-				{
-					Error: &testError,
-				},
-				{
-					Error: &testError,
-				},
-			},
+			ExpectError:       true,
 		},
 	}
 
@@ -195,18 +177,11 @@ func TestClairVulnServerVulnServing(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			neitherNil := resp.Error != nil && testCase.ExpectedResponses[0].Error != nil
-			if neitherNil && *resp.Error != *testCase.ExpectedResponses[0].Error {
-				t.Errorf(
-					"Expected to get error %v but got %v",
-					testCase.ExpectedResponses[0].Error,
-					resp.Error)
-			}
-			if resp.Finished != testCase.ExpectedResponses[0].Finished {
-				t.Errorf(
-					"Expected 'finished' to be %v but it's %v",
-					testCase.ExpectedResponses[0].Finished,
-					resp.Finished)
+			gotErr := resp.Error != nil
+			if gotErr && !testCase.ExpectError {
+				t.Errorf("Did not expect an error, but got '%s'", *resp.Error)
+			} else if !gotErr && testCase.ExpectError {
+				t.Errorf("Expected to get an error but did not get one")
 			}
 
 			if testCase.UseRetrievedJobID {
@@ -215,23 +190,25 @@ func TestClairVulnServerVulnServing(t *testing.T) {
 				url = fmt.Sprintf("%s&requestID=badid", url)
 			}
 
-			resp, err = requestVulns(url)
-			if err != nil {
-				t.Fatal(err)
-			}
+			var requestsMade uint = 0
+			for !resp.Finished {
+				resp, err = requestVulns(url)
+				requestsMade++
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			neitherNil = resp.Error != nil && testCase.ExpectedResponses[1].Error != nil
-			if neitherNil && *resp.Error != *testCase.ExpectedResponses[1].Error {
-				t.Errorf(
-					"Expected to get error %v but got %v",
-					testCase.ExpectedResponses[1].Error,
-					resp.Error)
-			}
-			if resp.Finished != testCase.ExpectedResponses[1].Finished {
-				t.Errorf(
-					"Expected 'finished' to be %v but it's %v",
-					testCase.ExpectedResponses[1].Finished,
-					resp.Finished)
+				gotErr := resp.Error != nil
+				if gotErr && !testCase.ExpectError {
+					t.Errorf("Did not expect an error, but got '%s'", *resp.Error)
+				} else if !gotErr && testCase.ExpectError {
+					t.Errorf("Expected to get an error but did not get one")
+				}
+
+				if requestsMade > testCase.VulnSource.(mockSource).RequestsToHandle+1 {
+					t.Fatalf("Vuln stream should have finished after %d requests", requestsMade)
+					return
+				}
 			}
 		}()
 	}
@@ -346,8 +323,8 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 			var i uint
 			for i = 0; i < mock.RequestsToHandle; i++ {
 				job.Errors <- errors.New(testError)
+				<-time.After(requestTimeout)
 			}
-			<-time.After(requestTimeout)
 			job.Finished <- done.Done{}
 		}()
 	} else {
