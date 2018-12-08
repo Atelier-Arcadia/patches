@@ -62,6 +62,10 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 			ExpectedResponses: []response{
 				{
 					Error:    nil,
+					Finished: false,
+				},
+				{
+					Error:    nil,
 					Finished: true,
 				},
 			},
@@ -72,6 +76,10 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 			VulnSource:        mockSource{},
 			UseRetrievedJobID: false,
 			ExpectedResponses: []response{
+				{
+					Error:    &errMissingPlatform,
+					Finished: false,
+				},
 				{
 					Error:    &errMissingPlatform,
 					Finished: false,
@@ -88,6 +96,10 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 					Error:    &errNoSuchPlatform,
 					Finished: false,
 				},
+				{
+					Error:    &errNoSuchPlatform,
+					Finished: false,
+				},
 			},
 		},
 		{
@@ -99,6 +111,10 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 			},
 			UseRetrievedJobID: true,
 			ExpectedResponses: []response{
+				{
+					Error:    nil,
+					Finished: false,
+				},
 				{
 					Error:    nil,
 					Finished: true,
@@ -141,6 +157,32 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 				t.Errorf(
 					"Expected 'finished' to be %v but it's %v",
 					testCase.ExpectedResponses[0].Finished,
+					resp.Finished)
+			}
+
+			// Make a second request to make sure the requestID is handled correctly
+			if testCase.UseRetrievedJobID {
+				url = fmt.Sprintf("%s&requestID=%s", url, resp.RequestID)
+			} else {
+				url = fmt.Sprintf("%s&requestID=badid", url)
+			}
+
+			resp, err = requestVulns(url)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			neitherNil = resp.Error != nil && testCase.ExpectedResponses[1].Error != nil
+			if neitherNil && *resp.Error != *testCase.ExpectedResponses[1].Error {
+				t.Errorf(
+					"Expected to get error %v but got %v",
+					testCase.ExpectedResponses[1].Error,
+					resp.Error)
+			}
+			if resp.Finished != testCase.ExpectedResponses[0].Finished {
+				t.Errorf(
+					"Expected 'finished' to be %v but it's %v",
+					testCase.ExpectedResponses[1].Finished,
 					resp.Finished)
 			}
 		}()
