@@ -220,83 +220,47 @@ func TestClairVulnServerVulnServing(t *testing.T) {
 }
 
 func TestClairVulnServerJobManagement(t *testing.T) {
-	testCases := []struct {
-		Description       string
-		RequestsToMake    uint
-		VulnSource        vulnerability.Source
-		UseRetrievedJobID bool
-		ExpectedResponses []response
-	}{
-		{
-			Description:    "Should serve vulns until job finishes",
-			RequestsToMake: 3,
-			VulnSource: mockSource{
-				VulnsPerRequest:  1,
-				RequestsToHandle: 3,
-			},
-			UseRetrievedJobID: true,
-			ExpectedResponses: []response{
-				{
-					Finished: false,
-				},
-				{
-					Finished: false,
-				},
-				{
-					Finished: true,
-				},
-			},
+	server := httptest.NewServer(NewClairVulnServer(
+		mockSource{
+			VulnsPerRequest:  1,
+			RequestsToHandle: 10,
 		},
-		{
-			Description:    "Should serve an error if a request is made for a finished job",
-			RequestsToMake: 3,
-			VulnSource: mockSource{
-				VulnsPerRequest:  1,
-				RequestsToHandle: 2,
-			},
-			UseRetrievedJobID: true,
-			ExpectedResponses: []response{
-				{
-					Finished: false,
-				},
-				{
-					Finished: true,
-				},
-				{
-					Error:    &errNoSuchJob,
-					Finished: false,
-				},
-			},
-		},
-		{
-			Description:       "Should serve an error when a job that does not exist is requested",
-			RequestsToMake:    2,
-			VulnSource:        mockSource{},
-			UseRetrievedJobID: false,
-			ExpectedResponses: []response{
-				{
-					Finished: false,
-				},
-				{
-					Error:    &errNoSuchJob,
-					Finished: false,
-				},
-			},
-		},
+		VulnJobManagerOptions{}))
+	defer server.Close()
+
+	url := fmt.Sprintf("%s/vulns?platform=debian-8", server.URL)
+	resp1, err := requestVulns(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp1.Error != nil {
+		t.Fatalf("%s", *resp1.Error)
 	}
 
-	for caseNum, testCase := range testCases {
-		t.Logf(
-			"Running TestClairVulnServerJobManagement case #%d: %s",
-			caseNum,
-			testCase.Description)
+	url = fmt.Sprintf("%s&requestID=%s", url, resp1.RequestID)
 
-		func() {
-			server := httptest.NewServer(NewClairVulnServer(
-				testCase.VulnSource,
-				VulnJobManagerOptions{}))
-			defer server.Close()
-		}()
+	resp2, err := requestVulns(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp2.Error != nil {
+		t.Fatalf("%s", *resp2.Error)
+	}
+
+	if resp2.RequestID != resp1.RequestID {
+		t.Errorf("Should get the same request ID every time vulns are polled for")
+	}
+
+	resp3, err := requestVulns(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp3.Error != nil {
+		t.Fatalf("%s", *resp3.Error)
+	}
+
+	if resp3.RequestID != resp2.RequestID {
+		t.Errorf("Should get the same request ID every time vulns are polled for")
 	}
 }
 
