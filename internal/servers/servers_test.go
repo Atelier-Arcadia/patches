@@ -31,7 +31,7 @@ var testVuln = vulnerability.Vulnerability{
 	},
 }
 
-var requestTimeout = 400 * time.Millisecond
+var requestTimeout = 10 * time.Millisecond
 
 type response struct {
 	Error           *string                       `json:"error"`
@@ -151,7 +151,8 @@ func TestClairVulnServerVulnServing(t *testing.T) {
 		{
 			Description: "Should serve an error if the vuln stream errors",
 			VulnSource: mockSource{
-				ReturnError: true,
+				ReturnError:      true,
+				RequestsToHandle: 1,
 			},
 			UseRetrievedJobID: true,
 			ExpectError:       true,
@@ -203,6 +204,10 @@ func TestClairVulnServerVulnServing(t *testing.T) {
 					t.Errorf("Did not expect an error, but got '%s'", *resp.Error)
 				} else if !gotErr && testCase.ExpectError {
 					t.Errorf("Expected to get an error but did not get one")
+				}
+
+				if testCase.ExpectError {
+					return
 				}
 
 				if requestsMade > testCase.VulnSource.(mockSource).RequestsToHandle+1 {
@@ -314,7 +319,7 @@ func requestVulns(url string) (response, error) {
 func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 	job := vulnerability.Job{
 		Vulns:    make(chan vulnerability.Vulnerability),
-		Finished: make(chan done.Done, 1),
+		Finished: make(chan done.Done),
 		Errors:   make(chan error),
 	}
 
