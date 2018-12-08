@@ -2,11 +2,11 @@ package servers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/pack"
@@ -14,7 +14,7 @@ import (
 	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
-var testErr = "testerror"
+var testError = "testerror"
 
 var testVuln = vulnerability.Vulnerability{
 	Name:                 "testvuln",
@@ -59,7 +59,7 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 				RequestsToHandle: 2,
 			},
 			UseRetrievedJobID: true,
-			ExpectedResponse: []response{
+			ExpectedResponses: []response{
 				{
 					Error:    nil,
 					Finished: false,
@@ -131,7 +131,7 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 
 		func() {
 			server := httptest.NewServer(NewClairVulnServer(
-				testCases.VulnSource,
+				testCase.VulnSource,
 				VulnJobManagerOptions{}))
 			defer server.Close()
 
@@ -236,7 +236,7 @@ func TestClairVulnServerVulnServing(t *testing.T) {
 
 		func() {
 			server := httptest.NewServer(NewClairVulnServer(
-				testCases.VulnSource,
+				testCase.VulnSource,
 				VulnJobManagerOptions{}))
 			defer server.Close()
 		}()
@@ -317,7 +317,7 @@ func TestClairVulnServerJobManagement(t *testing.T) {
 
 		func() {
 			server := httptest.NewServer(NewClairVulnServer(
-				testCases.VulnSource,
+				testCase.VulnSource,
 				VulnJobManagerOptions{}))
 			defer server.Close()
 		}()
@@ -351,7 +351,7 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 		go func() {
 			var i uint
 			for i = 0; i < mock.RequestsToHandle; i++ {
-				job.Errors <- testError
+				job.Errors <- errors.New(testError)
 			}
 			job.Finished <- done.Done{}
 		}()

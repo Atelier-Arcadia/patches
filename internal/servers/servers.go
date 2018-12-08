@@ -2,7 +2,6 @@ package servers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -12,8 +11,8 @@ import (
 	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
-const errMissingPlatform = "missing query parameter 'platform'"
-const errNoSuchPlatform = "no such platform"
+var errMissingPlatform = "missing query parameter 'platform'"
+var errNoSuchPlatform = "no such platform"
 
 // ClairVulnServer is an HTTP server that serves requests for vulnerabilities affecting
 // a specified platform.
