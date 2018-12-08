@@ -46,21 +46,18 @@ type mockSource struct {
 	ReturnError      bool
 }
 
+type nilSource struct{}
+
 func TestClairVulnServerInputValidation(t *testing.T) {
 	testCases := []struct {
 		Description       string
 		PlatformName      string
-		VulnSource        vulnerability.Source
 		UseRetrievedJobID bool
 		ExpectedResponse  response
 	}{
 		{
-			Description:  "Should accept a valid platform",
-			PlatformName: "debian-8",
-			VulnSource: mockSource{
-				VulnsPerRequest:  1,
-				RequestsToHandle: 2,
-			},
+			Description:       "Should accept a valid platform",
+			PlatformName:      "debian-8",
 			UseRetrievedJobID: true,
 			ExpectedResponse: response{
 				Error:    nil,
@@ -70,7 +67,6 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 		{
 			Description:       "Should error if the platform parameter is missing",
 			PlatformName:      "",
-			VulnSource:        mockSource{},
 			UseRetrievedJobID: false,
 			ExpectedResponse: response{
 				Error:    &errMissingPlatform,
@@ -80,7 +76,6 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 		{
 			Description:       "Should error if the platform is unsupported",
 			PlatformName:      "not-supported",
-			VulnSource:        mockSource{},
 			UseRetrievedJobID: false,
 			ExpectedResponse: response{
 				Error:    &errNoSuchPlatform,
@@ -88,12 +83,8 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 			},
 		},
 		{
-			Description:  "Should accept a valid platform and known job ID",
-			PlatformName: "debian-8",
-			VulnSource: mockSource{
-				VulnsPerRequest:  1,
-				RequestsToHandle: 2,
-			},
+			Description:       "Should accept a valid platform and known job ID",
+			PlatformName:      "debian-8",
 			UseRetrievedJobID: true,
 			ExpectedResponse: response{
 				Error:    nil,
@@ -110,7 +101,7 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 
 		func() {
 			server := httptest.NewServer(NewClairVulnServer(
-				testCase.VulnSource,
+				nilSource{},
 				VulnJobManagerOptions{}))
 			defer server.Close()
 
@@ -322,6 +313,18 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 			job.Finished <- done.Done{}
 		}()
 	}
+
+	return job
+}
+
+func (mock nilSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
+	job := vulnerability.Job{
+		Vulns:    make(chan vulnerability.Vulnerability),
+		Finished: make(chan done.Done, 1),
+		Errors:   make(chan error),
+	}
+
+	job.Finished <- done.Done{}
 
 	return job
 }
