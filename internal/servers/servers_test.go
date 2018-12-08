@@ -146,7 +146,8 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if resp.Error != testCase.ExpectedResponses[0].Error {
+			neitherNil := resp.Error != nil && testCase.ExpectedResponses[0].Error != nil
+			if neitherNil && *resp.Error != *testCase.ExpectedResponses[0].Error {
 				t.Errorf(
 					"Expected to get error %v but got %v",
 					testCase.ExpectedResponses[0].Error,
@@ -171,16 +172,17 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if resp.Error != testCase.ExpectedResponses[0].Error {
+			neitherNil = resp.Error != nil && testCase.ExpectedResponses[1].Error != nil
+			if neitherNil && *resp.Error != *testCase.ExpectedResponses[1].Error {
 				t.Errorf(
 					"Expected to get error %v but got %v",
-					testCase.ExpectedResponses[0].Error,
+					testCase.ExpectedResponses[1].Error,
 					resp.Error)
 			}
 			if resp.Finished != testCase.ExpectedResponses[0].Finished {
 				t.Errorf(
 					"Expected 'finished' to be %v but it's %v",
-					testCase.ExpectedResponses[0].Finished,
+					testCase.ExpectedResponses[1].Finished,
 					resp.Finished)
 			}
 		}()
