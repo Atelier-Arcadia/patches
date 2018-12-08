@@ -52,7 +52,7 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 		PlatformName      string
 		VulnSource        vulnerability.Source
 		UseRetrievedJobID bool
-		ExpectedResponses []response
+		ExpectedResponse  response
 	}{
 		{
 			Description:  "Should accept a valid platform",
@@ -62,15 +62,9 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 				RequestsToHandle: 2,
 			},
 			UseRetrievedJobID: true,
-			ExpectedResponses: []response{
-				{
-					Error:    nil,
-					Finished: false,
-				},
-				{
-					Error:    nil,
-					Finished: true,
-				},
+			ExpectedResponse: response{
+				Error:    nil,
+				Finished: true,
 			},
 		},
 		{
@@ -78,15 +72,9 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 			PlatformName:      "",
 			VulnSource:        mockSource{},
 			UseRetrievedJobID: false,
-			ExpectedResponses: []response{
-				{
-					Error:    &errMissingPlatform,
-					Finished: false,
-				},
-				{
-					Error:    &errMissingPlatform,
-					Finished: false,
-				},
+			ExpectedResponse: response{
+				Error:    &errMissingPlatform,
+				Finished: false,
 			},
 		},
 		{
@@ -94,15 +82,9 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 			PlatformName:      "not-supported",
 			VulnSource:        mockSource{},
 			UseRetrievedJobID: false,
-			ExpectedResponses: []response{
-				{
-					Error:    &errNoSuchPlatform,
-					Finished: false,
-				},
-				{
-					Error:    &errNoSuchPlatform,
-					Finished: false,
-				},
+			ExpectedResponse: response{
+				Error:    &errNoSuchPlatform,
+				Finished: false,
 			},
 		},
 		{
@@ -113,15 +95,9 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 				RequestsToHandle: 2,
 			},
 			UseRetrievedJobID: true,
-			ExpectedResponses: []response{
-				{
-					Error:    nil,
-					Finished: false,
-				},
-				{
-					Error:    nil,
-					Finished: true,
-				},
+			ExpectedResponse: response{
+				Error:    nil,
+				Finished: true,
 			},
 		},
 	}
@@ -138,7 +114,6 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 				VulnJobManagerOptions{}))
 			defer server.Close()
 
-			// Make a first request to kick off a job.
 			url := server.URL + "/vulns"
 			if testCase.PlatformName != "" {
 				url = fmt.Sprintf("%s?platform=%s", url, testCase.PlatformName)
@@ -149,43 +124,17 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			neitherNil := resp.Error != nil && testCase.ExpectedResponses[0].Error != nil
-			if neitherNil && *resp.Error != *testCase.ExpectedResponses[0].Error {
+			neitherNil := resp.Error != nil && testCase.ExpectedResponse.Error != nil
+			if neitherNil && *resp.Error != *testCase.ExpectedResponse.Error {
 				t.Errorf(
 					"Expected to get error %v but got %v",
-					testCase.ExpectedResponses[0].Error,
+					testCase.ExpectedResponse.Error,
 					resp.Error)
 			}
-			if resp.Finished != testCase.ExpectedResponses[0].Finished {
+			if resp.Finished != testCase.ExpectedResponse.Finished {
 				t.Errorf(
-					"Expected 'finished' to be %v but it's %v",
-					testCase.ExpectedResponses[0].Finished,
-					resp.Finished)
-			}
-
-			// Make a second request to finish the job
-			if testCase.UseRetrievedJobID {
-				url = fmt.Sprintf("%s&requestID=%s", url, resp.RequestID)
-			} else {
-				url = fmt.Sprintf("%s&requestID=badid", url)
-			}
-
-			resp, err = requestVulns(url)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			neitherNil = resp.Error != nil && testCase.ExpectedResponses[1].Error != nil
-			if neitherNil && *resp.Error != *testCase.ExpectedResponses[1].Error {
-				t.Errorf(
-					"Expected to get error %v but got %v",
-					testCase.ExpectedResponses[1].Error,
-					resp.Error)
-			}
-			if resp.Finished != testCase.ExpectedResponses[1].Finished {
-				t.Errorf(
-					"Expected 'finished' to be %v but it's %v",
-					testCase.ExpectedResponses[1].Finished,
+					"R1: Expected 'finished' to be %v but it's %v",
+					testCase.ExpectedResponse.Finished,
 					resp.Finished)
 			}
 		}()
@@ -357,7 +306,6 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 			var i uint
 			for i = 0; i < mock.RequestsToHandle; i++ {
 				job.Errors <- errors.New(testError)
-				<-time.After(requestTimeout)
 			}
 			job.Finished <- done.Done{}
 		}()
@@ -370,7 +318,6 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 				for i = 0; i < vulnsToServe; i++ {
 					job.Vulns <- testVuln
 				}
-				<-time.After(requestTimeout)
 			}
 			job.Finished <- done.Done{}
 		}()
