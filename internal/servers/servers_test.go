@@ -122,6 +122,69 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 			},
 		},
 	}
+
+	for caseNum, testCase := range testCases {
+		t.Logf(
+			"Running TestClairVulnServerInputValidation case #%d: %s",
+			caseNum,
+			testCase.Description)
+
+		func() {
+			server := httptest.NewServer(NewClairVulnServer(
+				testCases.VulnSource,
+				VulnJobManagerOptions{}))
+			defer server.Close()
+
+			// Make a first request to kick off a job.
+			url := server.URL + "/vulns"
+			if testCase.PlatformName != "" {
+				url = fmt.Sprintf("%s?platform=%s", url, testCase.PlatformName)
+			}
+
+			resp, err := requestVulns(url)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if resp.Error != testCase.ExpectedResponses[0].Error {
+				t.Errorf(
+					"Expected to get error %v but got %v",
+					testCase.ExpectedResponses[0].Error,
+					resp.Error)
+			}
+			if resp.Finished != testCase.ExpectedResponses[0].Finished {
+				t.Errorf(
+					"Expected 'finished' to be %v but it's %v",
+					testCase.ExpectedResponses[0].Finished,
+					resp.Finished)
+			}
+
+			// Make a second request to make sure the requestID is handled correctly
+			if testCase.UseRetrievedJobID {
+				url = fmt.Sprintf("%s&requestID=%s", url, resp.RequestID)
+			} else {
+				url = fmt.Sprintf("%s&requestID=badid", url)
+			}
+
+			resp, err = requestVulns(url)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if resp.Error != testCase.ExpectedResponses[0].Error {
+				t.Errorf(
+					"Expected to get error %v but got %v",
+					testCase.ExpectedResponses[0].Error,
+					resp.Error)
+			}
+			if resp.Finished != testCase.ExpectedResponses[0].Finished {
+				t.Errorf(
+					"Expected 'finished' to be %v but it's %v",
+					testCase.ExpectedResponses[0].Finished,
+					resp.Finished)
+			}
+		}()
+	}
 }
 
 func TestClairVulnServerVulnServing(t *testing.T) {
@@ -163,6 +226,20 @@ func TestClairVulnServerVulnServing(t *testing.T) {
 				},
 			},
 		},
+	}
+
+	for caseNum, testCase := range testCases {
+		t.Logf(
+			"Running TestClairVulnServerVulnServing case #%d: %s",
+			caseNum,
+			testCase.Description)
+
+		func() {
+			server := httptest.NewServer(NewClairVulnServer(
+				testCases.VulnSource,
+				VulnJobManagerOptions{}))
+			defer server.Close()
+		}()
 	}
 }
 
@@ -231,15 +308,23 @@ func TestClairVulnServerJobManagement(t *testing.T) {
 			},
 		},
 	}
+
+	for caseNum, testCase := range testCases {
+		t.Logf(
+			"Running TestClairVulnServerJobManagement case #%d: %s",
+			caseNum,
+			testCase.Description)
+
+		func() {
+			server := httptest.NewServer(NewClairVulnServer(
+				testCases.VulnSource,
+				VulnJobManagerOptions{}))
+			defer server.Close()
+		}()
+	}
 }
 
-func requestVulns(serverURL string, requestID *string) (response, error) {
-	url := ""
-	if requestID == nil {
-		url = serverURL + "/vulns?platform=debian-8"
-	} else {
-		url = serverURL + "/vulns?platform=debian-8&requestID=" + *requestID
-	}
+func requestVulns(url string) (response, error) {
 	res, err := http.Get(url)
 	if err != nil {
 		return response{}, err
