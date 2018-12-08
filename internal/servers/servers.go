@@ -12,6 +12,9 @@ import (
 	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
+const errMissingPlatform = "missing query parameter 'platform'"
+const errNoSuchPlatform = "no such platform"
+
 // ClairVulnServer is an HTTP server that serves requests for vulnerabilities affecting
 // a specified platform.
 type ClairVulnServer struct {
@@ -45,10 +48,8 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 	platforms, found := qs["platform"]
 	if !found || len(platforms) == 0 {
 		res.WriteHeader(http.StatusBadRequest)
-		errMsg := "missing query parameter 'platform'"
-
 		response.Encode(vulnsResponse{
-			Error: &errMsg,
+			Error: &errMissingPlatform,
 		})
 		return
 	}
@@ -56,10 +57,8 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 	pform, found := platform.Translate(platforms[0])
 	if !found {
 		res.WriteHeader(http.StatusBadRequest)
-		errMsg := fmt.Sprintf("no such platform '%s'", platforms[0])
-
 		response.Encode(vulnsResponse{
-			Error: &errMsg,
+			Error: &errNoSuchPlatform,
 		})
 		return
 	}

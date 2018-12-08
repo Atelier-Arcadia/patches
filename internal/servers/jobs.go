@@ -11,6 +11,8 @@ import (
 
 var defaultReadTimeout time.Duration = 30 * time.Millisecond
 
+var errNoSuchJob = "no such job"
+
 const (
 	defaultMaxJobs uint = 128
 
@@ -74,7 +76,7 @@ func (jobs *VulnJobManager) Retrieve(jobID string) (
 	fin := complete(false)
 
 	if !found {
-		return []vulnerability.Vulnerability{}, []error{fmt.Errorf("no such job")}, fin
+		return []vulnerability.Vulnerability{}, []error{fmt.Errorf(errNoSuchJob)}, fin
 	}
 
 	stopAt := time.Now().Add(jobs.maxReadTime)

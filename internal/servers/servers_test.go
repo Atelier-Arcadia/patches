@@ -14,6 +14,22 @@ import (
 	"github.com/arcrose/patches/pkg/vulnerability"
 )
 
+var testErr = "testerror"
+
+var testVuln = vulnerability.Vulnerability{
+	Name:                 "testvuln",
+	AffectedPackageName:  "testpackage",
+	AffectedPlatformName: "debian-8",
+	DetailsHref:          "website.com",
+	SeverityRating:       vulnerability.SeverityLow,
+	FixedInPackages: []pack.Package{
+		{
+			Name:    "testpackage",
+			Version: "1.2.3",
+		},
+	},
+}
+
 type response struct {
 	Error           *string                       `json:"error"`
 	RequestID       string                        `json:"requestID"`
@@ -24,184 +40,196 @@ type response struct {
 type mockSource struct {
 	VulnsPerRequest  uint
 	RequestsToHandle uint
-	ErrorMessage     string
+	ReturnError      bool
 }
 
-func TestClairVulnServer(t *testing.T) {
-	testErr := "testerror"
+func TestClairVulnServerInputValidation(t *testing.T) {
 	testCases := []struct {
 		Description       string
+		PlatformName      string
 		VulnSource        vulnerability.Source
+		UseRetrievedJobID bool
 		ExpectedResponses []response
-		ExpectError       bool
 	}{
 		{
-			Description: "Should serve requests for vulnerabilities for a platform",
-			VulnSource: mockSource{
-				VulnsPerRequest:  2,
-				RequestsToHandle: 1,
-			},
-			ExpectError: false,
-			ExpectedResponses: []response{
-				{
-					Error:     nil,
-					RequestID: "testid",
-					Finished:  false,
-					Vulnerabilities: []vulnerability.Vulnerability{
-						{
-							Name:                 "testvuln1",
-							AffectedPackageName:  "testpackage1",
-							AffectedPlatformName: "debian-8",
-							DetailsHref:          "website.com",
-							SeverityRating:       vulnerability.SeverityLow,
-							FixedInPackages: []pack.Package{
-								{
-									Name:    "testpackage1",
-									Version: "3.2.1",
-								},
-							},
-						},
-						{
-							Name:                 "testvuln2",
-							AffectedPackageName:  "testpackage2",
-							AffectedPlatformName: "debian-8",
-							DetailsHref:          "website.com",
-							SeverityRating:       vulnerability.SeverityLow,
-							FixedInPackages: []pack.Package{
-								{
-									Name:    "testpackage2",
-									Version: "3.2.1",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Description: "Should handle multiple requests fetching remaining vulnerabilities",
+			Description:  "Should accept a valid platform",
+			PlatformName: "debian-8",
 			VulnSource: mockSource{
 				VulnsPerRequest:  1,
 				RequestsToHandle: 2,
 			},
-			ExpectError: false,
-			ExpectedResponses: []response{
+			UseRetrievedJobID: true,
+			ExpectedResponse: []response{
 				{
-					Error:     nil,
-					RequestID: "testid",
-					Finished:  false,
-					Vulnerabilities: []vulnerability.Vulnerability{
-						{
-							Name:                 "testvuln1",
-							AffectedPackageName:  "testpackage1",
-							AffectedPlatformName: "debian-8",
-							DetailsHref:          "website.com",
-							SeverityRating:       vulnerability.SeverityLow,
-							FixedInPackages: []pack.Package{
-								{
-									Name:    "testpackage1",
-									Version: "3.2.1",
-								},
-							},
-						},
-					},
+					Error:    nil,
+					Finished: false,
 				},
 				{
-					Error:     nil,
-					RequestID: "testid",
-					Finished:  true,
-					Vulnerabilities: []vulnerability.Vulnerability{
-						{
-							Name:                 "testvuln1",
-							AffectedPackageName:  "testpackage1",
-							AffectedPlatformName: "debian-8",
-							DetailsHref:          "website.com",
-							SeverityRating:       vulnerability.SeverityLow,
-							FixedInPackages: []pack.Package{
-								{
-									Name:    "testpackage1",
-									Version: "3.2.1",
-								},
-							},
-						},
-					},
+					Error:    nil,
+					Finished: true,
 				},
 			},
 		},
 		{
-			Description: "Should serve an error if clair errors",
-			VulnSource: mockSource{
-				ErrorMessage: testErr,
-			},
-			ExpectError: true,
+			Description:       "Should error if the platform parameter is missing",
+			PlatformName:      "",
+			VulnSource:        mockSource{},
+			UseRetrievedJobID: false,
 			ExpectedResponses: []response{
 				{
-					Error:           &testErr,
-					RequestID:       "testid",
-					Finished:        false,
-					Vulnerabilities: []vulnerability.Vulnerability{},
+					Error:    &errMissingPlatform,
+					Finished: false,
+				},
+				{
+					Error:    &errMissingPlatform,
+					Finished: false,
+				},
+			},
+		},
+		{
+			Description:       "Should error if the platform is unsupported",
+			PlatformName:      "not-supported",
+			VulnSource:        mockSource{},
+			UseRetrievedJobID: false,
+			ExpectedResponses: []response{
+				{
+					Error:    &errNoSuchPlatform,
+					Finished: false,
+				},
+				{
+					Error:    &errNoSuchPlatform,
+					Finished: false,
+				},
+			},
+		},
+		{
+			Description:  "Should accept a valid platform and known job ID",
+			PlatformName: "debian-8",
+			VulnSource: mockSource{
+				VulnsPerRequest:  1,
+				RequestsToHandle: 2,
+			},
+			UseRetrievedJobID: true,
+			ExpectedResponses: []response{
+				{
+					Error:    nil,
+					Finished: false,
+				},
+				{
+					Error:    nil,
+					Finished: true,
 				},
 			},
 		},
 	}
+}
 
-	for caseNum, testCase := range testCases {
-		t.Logf("Running TestClairVulnServer case #%d: %s", caseNum, testCase.Description)
+func TestClairVulnServerVulnServing(t *testing.T) {
+	testCases := []struct {
+		Description       string
+		VulnSource        vulnerability.Source
+		UseRetrievedJobID bool
+		ExpectedResponses []response
+	}{
+		{
+			Description: "Should serve all vulns when the right job ID is sent",
+			VulnSource: mockSource{
+				VulnsPerRequest:  1,
+				RequestsToHandle: 2,
+			},
+			UseRetrievedJobID: true,
+			ExpectedResponses: []response{
+				{
+					Error:           nil,
+					Finished:        false,
+					Vulnerabilities: []vulnerability.Vulnerability{testVuln},
+				},
+				{
+					Error:           nil,
+					Finished:        true,
+					Vulnerabilities: []vulnerability.Vulnerability{testVuln},
+				},
+			},
+		},
+		{
+			Description: "Should serve an error if the vuln stream errors",
+			VulnSource: mockSource{
+				ReturnError: true,
+			},
+			UseRetrievedJobID: true,
+			ExpectedResponses: []response{
+				{
+					Error: &testError,
+				},
+			},
+		},
+	}
+}
 
-		func() {
-			server := httptest.NewServer(
-				NewClairVulnServer(testCase.VulnSource, VulnJobManagerOptions{
-					ReadTimeout: 5 * time.Second,
-				}))
-			defer server.Close()
-
-			var requestID *string = nil
-
-			resp, err := requestVulns(server.URL, requestID)
-			requestNum := 0
-
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			for !resp.Finished {
-				if requestID == nil {
-					*requestID = resp.RequestID
-				} else if *requestID != resp.RequestID {
-					t.Errorf("Should get the same requestID every time")
-				}
-
-				gotErr := resp.Error != nil
-				if gotErr && !testCase.ExpectError {
-					t.Fatalf("Did not expect an error but got '%s'", *resp.Error)
-				} else if !gotErr && testCase.ExpectError {
-					t.Fatalf("Expected to get an error, but did not get one")
-				}
-
-				if resp.Finished != testCase.ExpectedResponses[requestNum].Finished {
-					t.Errorf(
-						"Expected finished to be %v but it's %v",
-						testCase.ExpectedResponses[requestNum].Finished,
-						resp.Finished)
-				}
-
-				for _, vuln := range testCase.ExpectedResponses[requestNum].Vulnerabilities {
-					wasFound := false
-					for _, found := range resp.Vulnerabilities {
-						if vuln.Equals(found) {
-							wasFound = true
-							break
-						}
-					}
-					if !wasFound {
-						t.Errorf("Did not find vulnerability: %v", vuln)
-					}
-				}
-
-				resp, err = requestVulns(server.URL, requestID)
-				requestNum++
-			}
-		}()
+func TestClairVulnServerJobManagement(t *testing.T) {
+	testCases := []struct {
+		Description       string
+		RequestsToMake    uint
+		VulnSource        vulnerability.Source
+		UseRetrievedJobID bool
+		ExpectedResponses []response
+	}{
+		{
+			Description:    "Should serve vulns until job finishes",
+			RequestsToMake: 3,
+			VulnSource: mockSource{
+				VulnsPerRequest:  1,
+				RequestsToHandle: 3,
+			},
+			UseRetrievedJobID: true,
+			ExpectedResponses: []response{
+				{
+					Finished: false,
+				},
+				{
+					Finished: false,
+				},
+				{
+					Finished: true,
+				},
+			},
+		},
+		{
+			Description:    "Should serve an error if a request is made for a finished job",
+			RequestsToMake: 3,
+			VulnSource: mockSource{
+				VulnsPerRequest:  1,
+				RequestsToHandle: 2,
+			},
+			UseRetrievedJobID: true,
+			ExpectedResponses: []response{
+				{
+					Finished: false,
+				},
+				{
+					Finished: true,
+				},
+				{
+					Error:    &errNoSuchJob,
+					Finished: false,
+				},
+			},
+		},
+		{
+			Description:       "Should serve an error when a job that does not exist is requested",
+			RequestsToMake:    2,
+			VulnSource:        mockSource{},
+			UseRetrievedJobID: false,
+			ExpectedResponses: []response{
+				{
+					Finished: false,
+				},
+				{
+					Error:    &errNoSuchJob,
+					Finished: false,
+				},
+			},
+		},
 	}
 }
 
@@ -231,40 +259,28 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 	job := vulnerability.Job{
 		Vulns:    make(chan vulnerability.Vulnerability),
 		Finished: make(chan done.Done, 1),
-		Errors:   make(chan error, 1),
+		Errors:   make(chan error),
 	}
 
-	if mock.VulnsPerRequest == 0 {
-		job.Errors <- fmt.Errorf("%s", mock.ErrorMessage)
-		job.Finished <- done.Done{}
-		return job
-	}
-
-	go func() {
-		vulnsToServe := mock.VulnsPerRequest * mock.RequestsToHandle
-
-		var i uint
-		for i = 0; i < vulnsToServe; i++ {
-			vulnName := fmt.Sprintf("testvuln%d", i+1)
-			pkgName := fmt.Sprintf("testpackage%d", i+1)
-
-			job.Vulns <- vulnerability.Vulnerability{
-				Name:                 vulnName,
-				AffectedPackageName:  pkgName,
-				AffectedPlatformName: "debian-8",
-				DetailsHref:          "website.com",
-				SeverityRating:       vulnerability.SeverityLow,
-				FixedInPackages: []pack.Package{
-					{
-						Name:    pkgName,
-						Version: "3.2.1",
-					},
-				},
+	if mock.ReturnError {
+		go func() {
+			var i uint
+			for i = 0; i < mock.RequestsToHandle; i++ {
+				job.Errors <- testError
 			}
-		}
+			job.Finished <- done.Done{}
+		}()
+	} else {
+		go func() {
+			vulnsToServe := mock.VulnsPerRequest * mock.RequestsToHandle
 
-		job.Finished <- done.Done{}
-	}()
+			var i uint
+			for i = 0; i < vulnsToServe; i++ {
+				job.Vulns <- testVuln
+			}
+			job.Finished <- done.Done{}
+		}()
+	}
 
 	return job
 }
