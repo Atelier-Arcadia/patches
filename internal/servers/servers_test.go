@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/arcrose/patches/pkg/done"
 	"github.com/arcrose/patches/pkg/pack"
@@ -29,6 +30,8 @@ var testVuln = vulnerability.Vulnerability{
 		},
 	},
 }
+
+var requestTimeout = 400 * time.Millisecond
 
 type response struct {
 	Error           *string                       `json:"error"`
@@ -160,7 +163,7 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 					resp.Finished)
 			}
 
-			// Make a second request to make sure the requestID is handled correctly
+			// Make a second request to finish the job
 			if testCase.UseRetrievedJobID {
 				url = fmt.Sprintf("%s&requestID=%s", url, resp.RequestID)
 			} else {
@@ -179,7 +182,7 @@ func TestClairVulnServerInputValidation(t *testing.T) {
 					testCase.ExpectedResponses[1].Error,
 					resp.Error)
 			}
-			if resp.Finished != testCase.ExpectedResponses[0].Finished {
+			if resp.Finished != testCase.ExpectedResponses[1].Finished {
 				t.Errorf(
 					"Expected 'finished' to be %v but it's %v",
 					testCase.ExpectedResponses[1].Finished,
@@ -354,6 +357,7 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 			var i uint
 			for i = 0; i < mock.RequestsToHandle; i++ {
 				job.Errors <- errors.New(testError)
+				<-time.After(requestTimeout)
 			}
 			job.Finished <- done.Done{}
 		}()
@@ -361,9 +365,12 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 		go func() {
 			vulnsToServe := mock.VulnsPerRequest * mock.RequestsToHandle
 
-			var i uint
-			for i = 0; i < vulnsToServe; i++ {
-				job.Vulns <- testVuln
+			var i, j uint
+			for j = 0; j < mock.RequestsToHandle; j++ {
+				for i = 0; i < vulnsToServe; i++ {
+					job.Vulns <- testVuln
+				}
+				<-time.After(requestTimeout)
 			}
 			job.Finished <- done.Done{}
 		}()
