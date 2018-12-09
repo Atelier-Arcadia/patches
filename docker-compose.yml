@@ -13,22 +13,11 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
-    expose:
-      - 6060
-      - 6061
+    ports:
+      - "6060-6061:6060-6061"
     links:
       - postgres
     volumes:
       - /tmp:/tmp
       - ./clair_config:/config
     command: [-config, /config/config.yaml]
-
-  patches:
-    container_name: patches_patches
-    image: patches:latest
-    build: .
-    restart: "no"
-    depends_on:
-      - clair
-    links:
-      - clair
