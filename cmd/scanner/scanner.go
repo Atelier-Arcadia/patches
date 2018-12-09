@@ -118,12 +118,12 @@ func main() {
 
 func usage() {
 	out := flag.CommandLine.Output()
-	supportedPlatformNames := strings.Join(platform.SuppportedPlatformNames(), ", ")
+	supportedPlatformNames := strings.Join(platform.SuppportedPlatformNames(), "\n")
 
 	flag.PrintDefaults()
 	fmt.Fprintf(
 		out,
-		"Supported platforms: %s\n",
+		"\nSupported platforms:\n%s\n",
 		supportedPlatformNames)
 }
 
