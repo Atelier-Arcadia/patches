@@ -12,10 +12,10 @@ test: unit-test
 install-dependencies:
 	go get github.com/Sirupsen/logrus
 
-build-server:
+server:
 	go build -o patchesserver ./cmd/server
 
-build-scanner:
+scanner:
 	go build -o patchesscanner ./cmd/scanner
 
 docker-image:
