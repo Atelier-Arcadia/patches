@@ -1,4 +1,6 @@
 scanner
 server
+patchesscanner
+patchesserver
 
 *.swp
