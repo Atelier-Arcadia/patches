@@ -218,6 +218,7 @@ func __collect(
 	nextPage := __getSummaries(base, ext, summaries, errs)
 	for nextPage != "" {
 		<-block()
+		log.Debugf("Page %s", nextPage)
 		ext = fmt.Sprintf(vulnSummariesWithPageEndptFmt, pformName, nextPage)
 		nextPage = __getSummaries(base, ext, summaries, errs)
 	}

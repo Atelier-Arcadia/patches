@@ -2,8 +2,8 @@ package servers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -75,20 +75,8 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 		requestID, vulns, errs, fin = server.__newJob(pform)
 	}
 
-	errMsgs := make([]string, len(errs))
-	for i, err := range errs {
-		log.Error(err)
-		errMsgs[i] = err.Error()
-	}
-
-	if len(errs) > 0 {
-		res.WriteHeader(http.StatusBadRequest)
-		errMsg := strings.Join(errMsgs, "\n")
-
-		response.Encode(vulnsResponse{
-			Error: &errMsg,
-		})
-		return
+	for _, err := range errs {
+		log.Errorf("In request for %s, got error '%s'", req.URL.String(), err.Error())
 	}
 
 	response.Encode(vulnsResponse{
