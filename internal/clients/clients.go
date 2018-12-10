@@ -81,6 +81,8 @@ func __retrieve(
 				requestID)
 		}
 
+		log.Infof("Requesting %s", url)
+
 		resp, err := http.Get(url)
 		if err != nil {
 			errs <- err

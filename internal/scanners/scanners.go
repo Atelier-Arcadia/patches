@@ -150,6 +150,7 @@ func setupDpkg(cfg map[string]interface{}) (pack.Scanner, error) {
 // packages pulled from a source.
 func (agent Agent) Run() {
 	sched := newScheduler(agent.ScanFrequency)
+	sched.start()
 	runner := newJobRunner(
 		agent.VulnSource,
 		agent.Platform,
@@ -170,6 +171,7 @@ func (agent Agent) Run() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
+	log.Infof("Starting main Agent process")
 agent:
 	for {
 		select {
@@ -182,7 +184,7 @@ agent:
 					break
 				}
 				if err != nil {
-					log.Debugf("Scanner error: '%s'", err.Error())
+					log.Errorf("Scanner error: '%s'", err.Error())
 				}
 			}
 			if !anyFound {
@@ -229,6 +231,8 @@ func (sched *scheduler) stop() error {
 }
 
 func (runner *jobRunner) start() stream {
+	log.Infof("Starting job runner")
+
 	s := stream{
 		Vulns:    make(chan vulnerability.Vulnerability),
 		Finished: make(chan done.Done, 1),

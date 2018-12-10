@@ -61,17 +61,19 @@ func main() {
 		return
 	}
 
-	rateLimiter := limit.ConstantRateLimiter(200 * time.Millisecond)
-	server := clients.NewClairClient(*serverAddr, uint16(*serverPort), rateLimiter)
-
 	chosenPlatform, found := platform.Translate(*platformName)
 	if !found {
 		log.Errorf("Unsupported platform '%s'", *platformName)
 		return
 	}
 
+	log.Infof("Starting scanner")
+
+	rateLimiter := limit.ConstantRateLimiter(200 * time.Millisecond)
+	server := clients.NewClairClient(*serverAddr, uint16(*serverPort), rateLimiter)
+
 	scanner, err := scanners.Lookup(chosenPlatform, map[string]interface{}{
-		"compareFn": pack.VersionIsPrefix,
+		"compareFn": pack.VersionCompareFunc(pack.VersionIsPrefix),
 	})
 	if err != nil {
 		log.Errorf("Unsupported platform or invalid config: '%s'", err.Error())
@@ -151,6 +153,7 @@ func __reportVulnsToAPI(
 		for {
 			select {
 			case vuln := <-vulns:
+				log.Infof("Got a vuln: %s", vuln.String())
 				go __report(endpt, vuln, errs)
 
 			case <-terminate:

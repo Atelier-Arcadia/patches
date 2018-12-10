@@ -2,7 +2,6 @@ package servers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
@@ -40,6 +39,8 @@ func NewClairVulnServer(
 }
 
 func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	log.Infof("%s %s", req.Method, req.URL.String())
+
 	res.Header().Set("Content-Type", "application/json")
 	response := json.NewEncoder(res)
 
