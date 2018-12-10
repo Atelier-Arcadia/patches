@@ -8,7 +8,7 @@ performs a scan on a host for packages containing any vulnerabilities affecting
 the host.
 
 
-⚠️  WARNING ⚠️
+⚠️  **WARNING** ⚠️
 
 While it's extremely unlikely that this software would cause harm to your
 computer, it is worth noting that this software is considered to be in _alpha_.
@@ -17,7 +17,7 @@ Run at your own risk.
 
 ## Architecture
 
-![https://raw.githubusercontent.com/arcrose/patches/master/docs/arch.png](Architecture diagram)
+![Architecture diagram](https://raw.githubusercontent.com/arcrose/patches/master/docs/arch.png)
 
 1. The patches-server reads information about vulnerabilities from Clair.
 2. The patches-scanner streams that information from the server.
