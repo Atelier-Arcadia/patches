@@ -127,6 +127,14 @@ platform="ubuntu-18.04" # Replace with appropriate platform name for you
 After about one minute, the scanner should start logging information about
 requests it's making to the vulnerability server and any findings it produces.
 
+## Testing
+
+All of the patches' unit tests can be run by invoking `make`.
+
+```bash
+make test
+```
+
 ## Contributing
 
 No formal process has been established for this yet.
