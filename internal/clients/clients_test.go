@@ -85,10 +85,8 @@ func TestClairClientVulnerabilities(t *testing.T) {
 			serverPort, _ := strconv.ParseUint(serverURL.Port(), 10, 16)
 
 			limiter := limit.ConstantRateLimiter(10 * time.Millisecond)
-			client := NewClairClient(
-				"http://"+serverURL.Hostname(),
-				uint16(serverPort),
-				limiter)
+			address := fmt.Sprintf("http://%s:%d", serverURL.Hostname(), uint16(serverPort))
+			client := NewClairClient(address, limiter)
 
 			job := client.Vulnerabilities(platform.Debian8)
 			var err error

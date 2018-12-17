@@ -23,14 +23,10 @@ import (
 func main() {
 	flag.Usage = usage
 
-	serverAddr := flag.String(
-		"server-address",
-		"",
+	patchesServer := flag.String(
+		"patches-server",
+		"http://127.0.0.1:8080",
 		"Address of the patches-server to use as a source of vulnerability information")
-	serverPort := flag.Uint(
-		"server-port",
-		443,
-		"Port of the patches-server to connect to")
 	platformName := flag.String(
 		"platform",
 		"",
@@ -39,15 +35,15 @@ func main() {
 		"scan-frequency",
 		720,
 		"Frequency with which the agent will pull and scan for vulnerable packages in minutes")
-	vulnsAPI := flag.String(
-		"vulnerability-api",
+	mozdefProxy := flag.String(
+		"mozdef-proxy",
 		"",
-		"Full URL for a REST API endpoint that vulnerabilities found on the host will be sent to")
+		"Address of the MozDef-Proxy to report vulnerabilities to")
 
 	flag.Parse()
 
-	if *serverAddr == "" {
-		log.Errorf("Missing required parameter 'server-address'")
+	if *patchesServer == "" {
+		log.Errorf("Missing required parameter 'patches-server'")
 		return
 	}
 
@@ -56,8 +52,8 @@ func main() {
 		return
 	}
 
-	if *vulnsAPI == "" {
-		log.Errorf("Missing required parameter 'vulnerability-api'")
+	if *mozdefProxy == "" {
+		log.Errorf("Missing required parameter 'mozdef-proxy'")
 		return
 	}
 

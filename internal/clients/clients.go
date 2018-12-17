@@ -14,13 +14,12 @@ import (
 	"github.com/arcrose/patches/internal/limit"
 )
 
-const startFetchEndptFmt string = "%s:%d/vulns?platform=%s"
-const continueFetchEndptFmt string = "%s:%d/vulns?platform=%s&requestID=%s"
+const startFetchEndptFmt string = "%s/vulns?platform=%s"
+const continueFetchEndptFmt string = "%s/vulns?platform=%s&requestID=%s"
 
 // ClairClient is capable of communicating with a vulnerability source over HTTP.
 type ClairClient struct {
 	serverAddr string
-	serverPort uint16
 	block      limit.RateLimiter
 }
 
@@ -32,10 +31,9 @@ type clairServerResponse struct {
 }
 
 // NewClairClient constructs a ClairClient.
-func NewClairClient(addr string, port uint16, limiter limit.RateLimiter) ClairClient {
+func NewClairClient(addr string, limiter limit.RateLimiter) ClairClient {
 	return ClairClient{
 		serverAddr: addr,
-		serverPort: port,
 		block:      limiter,
 	}
 }
@@ -70,13 +68,11 @@ func __retrieve(
 			url = fmt.Sprintf(
 				startFetchEndptFmt,
 				client.serverAddr,
-				client.serverPort,
 				pform.String())
 		} else {
 			url = fmt.Sprintf(
 				continueFetchEndptFmt,
 				client.serverAddr,
-				client.serverPort,
 				pform.String(),
 				requestID)
 		}

@@ -119,8 +119,8 @@ platform="ubuntu-18.04" # Replace with appropriate platform name for you
 
 ./patchesscanner\
 	-platform $platform\
-	-server-api http://127.0.0.1:8080\
-	-vulnerability-api http://127.0.0.1:9001\
+	-patches-server http://127.0.0.1:8080\
+	-mozdef-proxy http://127.0.0.1:9001\
 	-scan-frequency 1
 ```
 
