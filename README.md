@@ -114,7 +114,7 @@ to a reporter API.
 make scanner
 
 # 2. Run the scanner.
-#    This step assumes you have a patches-server and Clair runnig locally.
+#    This step assumes you have a patches-server and Clair running locally.
 platform="ubuntu-18.04" # Replace with appropriate platform name for you
 
 ./patchesscanner\
