@@ -66,7 +66,7 @@ func main() {
 	log.Infof("Starting scanner")
 
 	rateLimiter := limit.ConstantRateLimiter(200 * time.Millisecond)
-	server := clients.NewClairClient(*serverAddr, uint16(*serverPort), rateLimiter)
+	server := clients.NewClairClient(*patchesServer, rateLimiter)
 
 	scanner, err := scanners.Lookup(chosenPlatform, map[string]interface{}{
 		"compareFn": pack.VersionCompareFunc(pack.VersionIsPrefix),
@@ -80,7 +80,7 @@ func main() {
 	// START
 	killReporter := make(chan bool, 2)
 	confirmReporterKilled := make(chan bool, 2)
-	reportToAPI, errs := __reportVulnsToAPI(*vulnsAPI, killReporter, confirmReporterKilled)
+	reportToAPI, errs := __reportVulnsToAPI(*mozdefProxy, killReporter, confirmReporterKilled)
 	defer func() {
 		killReporter <- true
 		killReporter <- true
