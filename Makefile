@@ -1,15 +1,15 @@
 unit-test:
-	go test ./internal/clients/
-	go test ./internal/limit/
-	go test ./internal/scanners/
-	go test ./internal/sources/
-	go test ./internal/sources/clair/
-	go test ./internal/servers/
-	go test ./cmd/scanner/
+	go test -v ./internal/clients/
+	go test -v ./internal/limit/
+	go test -v ./internal/scanners/
+	go test -v ./internal/sources/
+	go test -v ./internal/sources/clair/
+	go test -v ./internal/servers/
+	go test -v ./cmd/scanner/
 
 test: unit-test
 
-install-dependencies:
+dependencies:
 	go get github.com/Sirupsen/logrus
 
 server:
