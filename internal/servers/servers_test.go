@@ -287,28 +287,31 @@ func (mock mockSource) Vulnerabilities(_ platform.Platform) vulnerability.Job {
 		Errors:   make(chan error),
 	}
 
-	if mock.ReturnError {
-		go func() {
-			var i uint
-			for i = 0; i < mock.RequestsToHandle; i++ {
-				job.Errors <- errors.New(testError)
-				<-time.After(requestTimeout)
-			}
-			job.Finished <- done.Done{}
-		}()
-	} else {
-		go func() {
-			vulnsToServe := mock.VulnsPerRequest * mock.RequestsToHandle
+	sendErrors := func() {
+		var i uint
+		for i = 0; i < mock.RequestsToHandle; i++ {
+			job.Errors <- errors.New(testError)
+			<-time.After(requestTimeout)
+		}
+		job.Finished <- done.Done{}
+	}
 
-			var i, j uint
-			for j = 0; j < mock.RequestsToHandle; j++ {
-				for i = 0; i < vulnsToServe; i++ {
-					job.Vulns <- testVuln
-				}
-				<-time.After(requestTimeout)
+	sendVulns := func() {
+		vulnsToServe := mock.VulnsPerRequest * mock.RequestsToHandle
+		var i, j uint
+		for j = 0; j < mock.RequestsToHandle; j++ {
+			for i = 0; i < vulnsToServe; i++ {
+				job.Vulns <- testVuln
 			}
-			job.Finished <- done.Done{}
-		}()
+			<-time.After(requestTimeout)
+		}
+		job.Finished <- done.Done{}
+	}
+
+	if mock.ReturnError {
+		go sendErrors()
+	} else {
+		go sendVulns()
 	}
 
 	return job

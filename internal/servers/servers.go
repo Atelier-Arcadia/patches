@@ -80,6 +80,15 @@ func (server ClairVulnServer) ServeHTTP(res http.ResponseWriter, req *http.Reque
 		log.Errorf("In request for %s, got error '%s'", req.URL.String(), err.Error())
 	}
 
+	if len(errs) > 0 {
+		errMsg := "An internal error occurred while fetching vulnerabilities"
+		res.WriteHeader(http.StatusInternalServerError)
+		response.Encode(vulnsResponse{
+			Error: &errMsg,
+		})
+		return
+	}
+
 	response.Encode(vulnsResponse{
 		Vulnerabilities: vulns,
 		RequestID:       requestID,
