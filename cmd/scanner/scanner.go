@@ -20,6 +20,10 @@ import (
 	"github.com/arcrose/patches/internal/scanners"
 )
 
+// The amount of time to collect vulnerabilities found on the host for
+// before sending them in a batch request.
+var TIME_TO_BATCH_VULNS_BEFORE_SEND = 5 * time.Minute
+
 func main() {
 	flag.Usage = usage
 
@@ -80,7 +84,11 @@ func main() {
 	// START
 	killReporter := make(chan bool, 2)
 	confirmReporterKilled := make(chan bool, 2)
-	reportToAPI, errs := __reportVulnsToAPI(*mozdefProxy, killReporter, confirmReporterKilled)
+	reportToAPI, errs := __reportVulnsToAPI(
+		*mozdefProxy,
+		TIME_TO_BATCH_VULNS_BEFORE_SEND,
+		killReporter,
+		confirmReporterKilled)
 	defer func() {
 		killReporter <- true
 		killReporter <- true
@@ -133,8 +141,11 @@ func usage() {
 //////////////////////////////////////////////////////////////////////
 //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //  //
 
+// __reportVulnsToAPI runs a goroutine that will read vulnerabilities
+// found on the host, batch them into a list and send them periodically.
 func __reportVulnsToAPI(
 	endpt string,
+	sendEvery time.Duration,
 	terminate <-chan bool,
 	confirm chan<- bool,
 ) (
@@ -145,12 +156,32 @@ func __reportVulnsToAPI(
 	errs := make(chan error)
 
 	go func() {
+		batch := make([]vulnerability.Vulnerability, 32)
+		batchIndex := 0
+		maxBatchIndex := 32
+
 	reporting:
 		for {
 			select {
 			case vuln := <-vulns:
 				log.Infof("Got a vuln: %s", vuln.String())
-				go __report(endpt, vuln, errs)
+				if batchIndex >= maxBatchIndex {
+					batch = append(batch, vuln)
+					batchIndex++
+					maxBatchIndex++
+				} else {
+					batch[batchIndex] = vuln
+					batchIndex++
+				}
+
+			case <-time.After(sendEvery):
+				if batchIndex > 0 {
+					log.Infof("Reporting %d found vulnerabilities", batchIndex)
+					vulns := make([]vulnerability.Vulnerability, batchIndex)
+					copy(vulns, batch[:batchIndex])
+					go __report(endpt, vulns, errs)
+					batchIndex = 0
+				}
 
 			case <-terminate:
 				confirm <- true
@@ -164,10 +195,12 @@ func __reportVulnsToAPI(
 
 func __report(
 	endpt string,
-	vuln vulnerability.Vulnerability,
+	vulns []vulnerability.Vulnerability,
 	errs chan<- error,
 ) {
-	encoded, err := json.Marshal(vuln)
+	encoded, err := json.Marshal(struct {
+		Vulnerabilities []vulnerability.Vulnerability `json:"vulnerabilities"`
+	}{vulns})
 	if err != nil {
 		errs <- err
 		return
