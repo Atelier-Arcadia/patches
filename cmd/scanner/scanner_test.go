@@ -42,7 +42,7 @@ func TestReportVulnsToAPI(t *testing.T) {
 			Description:    "Should report as many errors as failures occur reporting to the API",
 			VulnsToSend:    3,
 			Handler:        fail,
-			ExpectedErrors: 3,
+			ExpectedErrors: 1,
 		},
 	}
 
@@ -56,7 +56,8 @@ func TestReportVulnsToAPI(t *testing.T) {
 			terminate := make(chan bool, 1)
 			confirm := make(chan bool, 1)
 
-			vulns, errs := __reportVulnsToAPI(server.URL, terminate, confirm)
+			sendEvery := 200 * time.Millisecond
+			vulns, errs := __reportVulnsToAPI(server.URL, sendEvery, terminate, confirm)
 
 			var i uint
 			for i = 0; i < testCase.VulnsToSend; i++ {
@@ -111,7 +112,8 @@ func TestReport(t *testing.T) {
 			defer server.Close()
 
 			errs := make(chan error, 1)
-			__report(server.URL, testVuln, errs)
+			vulns := []vulnerability.Vulnerability{testVuln}
+			__report(server.URL, vulns, errs)
 
 			select {
 			case err := <-errs:
@@ -129,7 +131,9 @@ func TestReport(t *testing.T) {
 }
 
 func validate(res http.ResponseWriter, req *http.Request) {
-	decoded := vulnerability.Vulnerability{}
+	decoded := struct {
+		Vulns []vulnerability.Vulnerability `json:"vulnerabilities"`
+	}{}
 	decoder := json.NewDecoder(req.Body)
 	defer req.Body.Close()
 
@@ -140,7 +144,7 @@ func validate(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if !decoded.Equals(testVuln) {
+	if len(decoded.Vulns) == 0 || !decoded.Vulns[0].Equals(testVuln) {
 		res.WriteHeader(http.StatusBadRequest)
 		res.Write([]byte("fail"))
 		return
