@@ -160,11 +160,14 @@ func __reportVulnsToAPI(
 		batchIndex := 0
 		maxBatchIndex := 32
 
+		lastSentVulns := time.Now()
+
 	reporting:
 		for {
+			timeLeftBeforeSend := time.Until(lastSentVulns.Add(sendEvery))
+
 			select {
 			case vuln := <-vulns:
-				log.Infof("Got a vuln: %s", vuln.String())
 				if batchIndex >= maxBatchIndex {
 					batch = append(batch, vuln)
 					batchIndex++
@@ -174,7 +177,8 @@ func __reportVulnsToAPI(
 					batchIndex++
 				}
 
-			case <-time.After(sendEvery):
+			case <-time.After(timeLeftBeforeSend):
+				lastSentVulns = time.Now()
 				if batchIndex > 0 {
 					log.Infof("Reporting %d found vulnerabilities", batchIndex)
 					vulns := make([]vulnerability.Vulnerability, batchIndex)
