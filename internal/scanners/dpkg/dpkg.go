@@ -13,7 +13,7 @@ type DPKG struct {
 	compareFn pack.VersionCompareFunc
 }
 
-// NewScanner constructs a new DPKG that will compare versions using a
+// NewDPKG constructs a new DPKG that will compare versions using a
 // given comparison function.
 func NewDPKG(cmp pack.VersionCompareFunc) DPKG {
 	return DPKG{
