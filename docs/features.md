@@ -1,13 +1,13 @@
-# Chainmail
+# Patches
 
-Chainmail is inspired by a use case for the [Mozilla InvestiGator](https://github.com/mozilla/mig)
+Patches is inspired by a use case for the [Mozilla InvestiGator](https://github.com/mozilla/mig)
 project wherein information about vulnerable packages is fed from the [Clair](https://github.com/coreos/clair)
 database into MIG Agents.  These agents scan for those vulnerable packages on their respective hosts and report
 which ones they find.
 
 ## Feature Summary
 
-* Chainmail is designed to be fully distributed and run on server infrastructure.
+* Patches is designed to be fully distributed and run on server infrastructure.
 * Agents can operate as either scanners or vulnerability knowledge bases.
 * Knowledge bases maintain information about vulnerable packages and share it with peers.
 * Scanners retain some knowledge about vulnerable packages and scan for them until they are patched.
@@ -16,9 +16,9 @@ which ones they find.
 
 Both types of agents will begin operation by searching for peers.
 
-### Knowledge Bases
+### Servers
 
-A knowledge base will periodically query for new vulnerable package information. Upon learning of new packages, it
+A server will periodically query for new vulnerable package information. Upon learning of new packages, it
 will ask peers to scan for them. If a peer does not respond, it will be periodically be pinged again until it responds
 or a time threshold is met.
 
