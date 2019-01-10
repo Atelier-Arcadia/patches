@@ -16,6 +16,7 @@ import (
 
 	"github.com/arcrose/patches/internal/limit"
 	"github.com/arcrose/patches/internal/scanners/dpkg"
+	"github.com/arcrose/patches/internal/scanners/rpm"
 )
 
 // Agent is a top-level type that contains all of the dependencies required to
@@ -104,9 +105,9 @@ func newJobRunner(
 
 func supported() map[platform.Platform]setupFn {
 	return map[platform.Platform]setupFn{
-		//platform.CentOS5:        setupYum,
-		//platform.CentOS6:        setupYum,
-		//platform.CentOS7:        setupYum,
+		platform.CentOS5:        setupRpm,
+		platform.CentOS6:        setupRpm,
+		platform.CentOS7:        setupRpm,
 		platform.Debian8:        setupDpkg,
 		platform.Debian9:        setupDpkg,
 		platform.Debian10:       setupDpkg,
@@ -117,9 +118,9 @@ func supported() map[platform.Platform]setupFn {
 		//platform.Alpine3_6:      setupApk,
 		//platform.Alpine3_7:      setupApk,
 		//platform.Alpine3_8:      setupApk,
-		//platform.Oracle5:        setupYum,
-		//platform.Oracle6:        setupYum,
-		//platform.Oracle7:        setupYum,
+		platform.Oracle5:     setupRpm,
+		platform.Oracle6:     setupRpm,
+		platform.Oracle7:     setupRpm,
 		platform.Ubuntu12_04: setupDpkg,
 		platform.Ubuntu12_10: setupDpkg,
 		platform.Ubuntu13_04: setupDpkg,
@@ -144,6 +145,16 @@ func setupDpkg(cfg map[string]interface{}) (pack.Scanner, error) {
 	}
 
 	return dpkg.NewDPKG(compareFn), nil
+}
+
+func setupRpm(cfg map[string]interface{}) (pack.Scanner, error) {
+	var compareFn, ok = cfg["compareFn"].(pack.VersionCompareFunc)
+	if !ok {
+		var err = fmt.Errorf("Scanner configuration is missing a valid 'compareFn'")
+		return NilScanner{}, err
+	}
+
+	return rpm.NewRPM(compareFn), nil
 }
 
 // Run starts an Agent process of periodically scanning for vulnerable
