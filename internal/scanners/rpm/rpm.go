@@ -28,7 +28,7 @@ func (rpm RPM) Scan(pkg pack.Package) (pack.Found, error) {
 		"rpm",
 		"-qa",
 		"--queryformat",
-		"%{NAME} %{EVR}\\n")
+		"%{NAME} %{EVR}\\n").Output()
 	if err != nil {
 		return pack.NotFound, err
 	}
@@ -38,7 +38,7 @@ func (rpm RPM) Scan(pkg pack.Package) (pack.Found, error) {
 	var found = pack.Package{}
 	for _, found = range packagesFound {
 		var containsName = strings.Contains(found.Name, pkg.Name)
-		var sameVersion = rpm.compareFn(pkg.Version, found.Version) == Pack.WasFound
+		var sameVersion = rpm.compareFn(pkg.Version, found.Version) == pack.WasFound
 
 		if containsName && sameVersion {
 			return pack.WasFound, nil
