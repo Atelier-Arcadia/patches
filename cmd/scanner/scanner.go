@@ -8,12 +8,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/arcrose/patches/pkg/pack"
-	"github.com/arcrose/patches/pkg/platform"
+	"github.com/Atelier-Arcadia/patches/pkg/pack"
+	"github.com/Atelier-Arcadia/patches/pkg/platform"
 
-	"github.com/arcrose/patches/internal/clients"
-	"github.com/arcrose/patches/internal/limit"
-	"github.com/arcrose/patches/internal/scanners"
+	"github.com/Atelier-Arcadia/patches/internal/clients"
+	"github.com/Atelier-Arcadia/patches/internal/limit"
+	"github.com/Atelier-Arcadia/patches/internal/scanners"
 )
 
 // The amount of time to collect vulnerabilities found on the host for

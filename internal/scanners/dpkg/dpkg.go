@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/arcrose/patches/pkg/pack"
+	"github.com/Atelier-Arcadia/patches/pkg/pack"
 )
 
 // DPKG is a Scanner that searches for installed packages by invoking dpkg.

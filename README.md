@@ -17,7 +17,7 @@ Run at your own risk.
 
 ## Architecture
 
-![Architecture diagram](https://raw.githubusercontent.com/arcrose/patches/master/docs/arch.png)
+![Architecture diagram](https://raw.githubusercontent.com/Atelier-Arcadia/patches/master/docs/arch.png)
 
 1. The patches-server reads information about vulnerabilities from Clair.
 2. The patches-scanner streams that information from the server.

@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/arcrose/patches/pkg/pack"
+	"github.com/Atelier-Arcadia/patches/pkg/pack"
 )
 
 type RPM struct {

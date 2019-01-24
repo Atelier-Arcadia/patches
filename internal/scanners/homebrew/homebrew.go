@@ -4,7 +4,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/arcrose/patches/pkg/pack"
+	"github.com/Atelier-Arcadia/patches/pkg/pack"
 )
 
 // Homebrew is a Scanner that searches for installed packages by looking for a directory

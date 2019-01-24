@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arcrose/patches/pkg/pack"
-	"github.com/arcrose/patches/pkg/vulnerability"
+	"github.com/Atelier-Arcadia/patches/pkg/pack"
+	"github.com/Atelier-Arcadia/patches/pkg/vulnerability"
 )
 
 var testVuln = vulnerability.Vulnerability{

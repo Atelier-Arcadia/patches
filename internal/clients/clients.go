@@ -7,11 +7,11 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/arcrose/patches/pkg/done"
-	"github.com/arcrose/patches/pkg/platform"
-	"github.com/arcrose/patches/pkg/vulnerability"
+	"github.com/Atelier-Arcadia/patches/pkg/done"
+	"github.com/Atelier-Arcadia/patches/pkg/platform"
+	"github.com/Atelier-Arcadia/patches/pkg/vulnerability"
 
-	"github.com/arcrose/patches/internal/limit"
+	"github.com/Atelier-Arcadia/patches/internal/limit"
 )
 
 const startFetchEndptFmt string = "%s/vulns?platform=%s"

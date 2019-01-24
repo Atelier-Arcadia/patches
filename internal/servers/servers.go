@@ -6,8 +6,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/arcrose/patches/pkg/platform"
-	"github.com/arcrose/patches/pkg/vulnerability"
+	"github.com/Atelier-Arcadia/patches/pkg/platform"
+	"github.com/Atelier-Arcadia/patches/pkg/vulnerability"
 )
 
 var errMissingPlatform = "missing query parameter 'platform'"

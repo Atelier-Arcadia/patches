@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arcrose/patches/pkg/done"
-	"github.com/arcrose/patches/pkg/platform"
-	"github.com/arcrose/patches/pkg/vulnerability"
+	"github.com/Atelier-Arcadia/patches/pkg/done"
+	"github.com/Atelier-Arcadia/patches/pkg/platform"
+	"github.com/Atelier-Arcadia/patches/pkg/vulnerability"
 )
 
 type mockSource struct {

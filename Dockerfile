@@ -1,6 +1,6 @@
 FROM golang:latest
 
-WORKDIR /src/github.com/arcrose/patches/
+WORKDIR /src/github.com/Atelier-Arcadia/patches/
 
 ENV GOPATH /
 

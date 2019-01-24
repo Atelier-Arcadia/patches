@@ -9,14 +9,14 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/arcrose/patches/pkg/done"
-	"github.com/arcrose/patches/pkg/pack"
-	"github.com/arcrose/patches/pkg/platform"
-	"github.com/arcrose/patches/pkg/vulnerability"
+	"github.com/Atelier-Arcadia/patches/pkg/done"
+	"github.com/Atelier-Arcadia/patches/pkg/pack"
+	"github.com/Atelier-Arcadia/patches/pkg/platform"
+	"github.com/Atelier-Arcadia/patches/pkg/vulnerability"
 
-	"github.com/arcrose/patches/internal/limit"
-	"github.com/arcrose/patches/internal/scanners/dpkg"
-	"github.com/arcrose/patches/internal/scanners/rpm"
+	"github.com/Atelier-Arcadia/patches/internal/limit"
+	"github.com/Atelier-Arcadia/patches/internal/scanners/dpkg"
+	"github.com/Atelier-Arcadia/patches/internal/scanners/rpm"
 )
 
 // Agent is a top-level type that contains all of the dependencies required to

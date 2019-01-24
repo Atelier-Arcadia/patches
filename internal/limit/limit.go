@@ -3,7 +3,7 @@ package limit
 import (
 	"time"
 
-	"github.com/arcrose/patches/pkg/done"
+	"github.com/Atelier-Arcadia/patches/pkg/done"
 )
 
 // RateLimiter is a function that, similar to time.After, returns a channel from

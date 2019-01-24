@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/arcrose/patches/pkg/vulnerability"
+	"github.com/Atelier-Arcadia/patches/pkg/vulnerability"
 )
 
 var defaultReadTimeout time.Duration = 30 * time.Millisecond

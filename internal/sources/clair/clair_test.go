@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/arcrose/patches/pkg/done"
-	"github.com/arcrose/patches/pkg/pack"
-	"github.com/arcrose/patches/pkg/platform"
-	"github.com/arcrose/patches/pkg/vulnerability"
+	"github.com/Atelier-Arcadia/patches/pkg/done"
+	"github.com/Atelier-Arcadia/patches/pkg/pack"
+	"github.com/Atelier-Arcadia/patches/pkg/platform"
+	"github.com/Atelier-Arcadia/patches/pkg/vulnerability"
 
-	"github.com/arcrose/patches/internal/limit"
+	"github.com/Atelier-Arcadia/patches/internal/limit"
 )
 
 func TestSummarizeVulnerabilities(t *testing.T) {
