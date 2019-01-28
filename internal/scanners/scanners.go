@@ -275,6 +275,8 @@ func (_ NilScanner) Scan(_ pack.Package) (pack.Found, error) {
 func __runClock(s *scheduler) {
 	block := s.schedule
 
+	s.ticks <- signal(true)
+
 clock:
 	for {
 		select {
